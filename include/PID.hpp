@@ -28,6 +28,8 @@ public:
 
         void checkDimensions(unsigned int dim) const;
         void resize(unsigned int dim);
+
+        static Inputs create(double ref, double sig, double dref, double dsig, double sat);
     };
 
     struct Outputs

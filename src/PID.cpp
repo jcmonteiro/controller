@@ -31,6 +31,16 @@ void PID::Inputs::resize(unsigned int dim)
     pid_sat.resize(dim);
 }
 
+PID::Inputs PID::Inputs::create(double ref, double sig, double dref, double dsig, double sat)
+{
+    Inputs ret;
+    ret.reference.setConstant(1, ref);
+    ret.signal.setConstant(1, sig);
+    ret.dotreference.setConstant(1, dref);
+    ret.dotsignal.setConstant(1, dsig);
+    ret.pid_sat.setConstant(1, sat);
+    return ret;
+}
 
 void PID::Outputs::resize(unsigned int dim)
 {
