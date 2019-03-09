@@ -1,27 +1,28 @@
 #pragma once
 
-#include <linear_system/LinearSystem.hpp>
+#include <vector>
+#include "PID.hpp"
 
 namespace pid_control
 {
 
-class PID
+class PPI
 {
 public:
-    //! Structure to hold the PID parameters for 'PARALLEL' type PID.
+    //! Structure to hold the PPI parameters for 'PARALLEL' type PPI.
     struct ParallelSettings
     {
         //! Sampling time in seconds
         double Ts;
 
-        //! Proportional gain
-        double Kp;
+        //! Proportional gain of the external control loop
+        double Kp1;
+
+        //! Proportional gain of the internal control loop
+        double Kp2;
 
         //! Integral gain
         double Ki;
-
-        //! Derivative gain
-        double Kd;
 
         //! Derivative term
         /** Derivative term filtered by a first order system with time constant Td/N
@@ -51,14 +52,14 @@ public:
         double YMax;
 
         //! Constructor
-        ParallelSettings():Ts(0),Kp(0),Ki(0),Kd(0),N(0),B(1),Tt(-1),YMin(0),YMax(0){}
+        ParallelSettings():Ts(0),Kp1(0),Kp2(0),Ki(0),N(0),B(1),Tt(-1),YMin(0),YMax(0){}
 
         bool operator==(const ParallelSettings &other) const{
             return
                 Ts == other.Ts &&
-                Kp == other.Kp &&
+                Kp1 == other.Kp1 &&
+                Kp2 == other.Kp2 &&
                 Ki == other.Ki &&
-                Kd == other.Kd &&
                 N == other.N &&
                 B == other.B &&
                 Tt == other.Tt &&
@@ -69,22 +70,17 @@ public:
         bool operator!=(const ParallelSettings &other) const{
             return !(*this == other);
         }
-
-        void setIdealCoefficients(
-            double _K = 0,
-            double _Ti = 0,
-            double _Td = 0);
     };
 
     struct Parameters
     {
         linear_system::IntegrationMethod integration_method;
-        std::vector<ParallelSettings> pid_settings;
+        std::vector<ParallelSettings> p_pi_settings;
         bool wrap_2pi;
         bool saturate;
 
-        Parameters() : integration_method(linear_system::IntegrationMethod::TUSTIN), wrap_2pi(false), saturate(false) {}
-        void setSettings(const std::vector<ParallelSettings> &settings) {pid_settings = settings;}
+        Parameters() : integration_method(linear_system::TUSTIN), wrap_2pi(false), saturate(false) {}
+        void setSettings(const std::vector<ParallelSettings> &settings) {p_pi_settings = settings;}
     };
 
     struct Inputs
@@ -92,7 +88,7 @@ public:
         linear_system::LinearSystem::Time time;
         Eigen::VectorXd reference, signal;
         Eigen::VectorXd dotreference, dotsignal;
-        Eigen::VectorXd pid_sat;
+        Eigen::VectorXd p_pi_sat;
 
         void checkDimensions(unsigned int dim) const;
         void resize(unsigned int dim);
@@ -103,40 +99,25 @@ public:
     struct Outputs
     {
         Eigen::VectorXd p_error, d_error;
-        Eigen::VectorXd p, i, d, pid;
+        Eigen::VectorXd p_pi;
 
         void resize(unsigned int dim);
-        const Eigen::VectorXd & getValue() {return pid;}
+        const Eigen::VectorXd & getValue() {return p_pi;}
     };
 
 private:
+    unsigned int dim;
+
+    PID pid;
+    PID::Inputs pid_inputs;
+    PID::Parameters pid_params;
     Parameters params;
     Outputs outputs;
 
-    bool first_run, has_integrator;
-    unsigned int dim;
-    Eigen::VectorXd p_error_with_B, integrator_input;
-    Eigen::VectorXd B, Kp, Kd, Ki, Kt;
-
-    linear_system::LinearSystem integrator;
-
-    void configIntegrator();
-
 public:
-    PID() : first_run(true), has_integrator(false), dim(0) {}
     void configParameters(const Parameters &params);
-
-    /*!
-     * \brief restart Schedules a restart for the next update to reset the integrator
-     */
-    inline void restart() {first_run = true;}
-
-    /*!
-     * \brief cancelRestart Cancels a scheduled restart
-     */
-    inline void cancelRestart() {first_run = false;}
-
-    const Outputs & update(const Inputs & inputs, bool check_dim = true);
+    inline void restart() {pid.restart();}
+    const Outputs & update(const Inputs &inputs, bool check_dim = true);
 };
 
 }

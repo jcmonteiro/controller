@@ -9,7 +9,11 @@ find_package(linear_system REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 include_directories("include" ${EIGEN3_INCLUDE_DIRS})
-add_library(${LIBNAME} SHARED "src/PID.cpp")
+set(LIBRARY_SOURCES
+    src/PID.cpp
+    src/PPI.cpp
+)
+add_library(${LIBNAME} SHARED "${LIBRARY_SOURCES}")
 target_link_libraries(${LIBNAME} linear_system)
 
 # Unit tests
@@ -22,7 +26,11 @@ if (Boost_FOUND)
 endif ()
 
 # Install
-set_target_properties(${LIBNAME} PROPERTIES PUBLIC_HEADER "include/PID.hpp;include/ParallelPIDSettings.hpp")
+set(LIBRARY_HEADERS
+    include/PID.hpp
+    include/PPI.hpp
+)
+set_target_properties(${LIBNAME} PROPERTIES PUBLIC_HEADER "${LIBRARY_HEADERS}")
 install(
     TARGETS ${LIBNAME}
     EXPORT "${LIBNAME}-export"
