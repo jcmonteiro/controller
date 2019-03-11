@@ -52,7 +52,7 @@ public:
         double YMax;
 
         //! Constructor
-        ParallelSettings():Ts(0),Kp1(0),Kp2(0),Ki(0),N(0),B(1),Tt(-1),YMin(0),YMax(0){}
+        ParallelSettings():Ts(0),Kp1(0),Kp2(0),Ki(0),B(1),Tt(-1),YMin(0),YMax(0){}
 
         bool operator==(const ParallelSettings &other) const{
             return
@@ -60,7 +60,6 @@ public:
                 Kp1 == other.Kp1 &&
                 Kp2 == other.Kp2 &&
                 Ki == other.Ki &&
-                N == other.N &&
                 B == other.B &&
                 Tt == other.Tt &&
                 YMin == other.YMin &&

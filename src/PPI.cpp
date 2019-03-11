@@ -66,7 +66,6 @@ void PPI::configParameters(const Parameters &params)
         pid_params.pid_settings[i].Kp = params.p_pi_settings[i].Kp1*params.p_pi_settings[i].Kp2 + params.p_pi_settings[i].Ki;
         pid_params.pid_settings[i].Ki = params.p_pi_settings[i].Kp1*params.p_pi_settings[i].Ki;
         pid_params.pid_settings[i].Kd = params.p_pi_settings[i].Kp2;
-        pid_params.pid_settings[i].N = params.p_pi_settings[i].N;
         pid_params.pid_settings[i].B = params.p_pi_settings[i].B;
         pid_params.pid_settings[i].Tt = params.p_pi_settings[i].Tt;
         pid_params.pid_settings[i].YMin = params.p_pi_settings[i].YMin;

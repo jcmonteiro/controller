@@ -31,7 +31,6 @@ PYBIND11_MODULE(pid_control_py, m) {
         .def_readwrite("Kp",   &PID::ParallelSettings::Kp)
         .def_readwrite("Ki",   &PID::ParallelSettings::Ki)
         .def_readwrite("Kd",   &PID::ParallelSettings::Kd)
-        .def_readwrite("N",    &PID::ParallelSettings::N)
         .def_readwrite("B",    &PID::ParallelSettings::B)
         .def_readwrite("Tt",   &PID::ParallelSettings::Tt)
         .def_readwrite("YMin", &PID::ParallelSettings::YMin)
