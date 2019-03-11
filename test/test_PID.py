@@ -3,9 +3,8 @@ import unittest
 
 import sys
 sys.path.append('../build')
-sys.path.append('/usr/local/lib/python/dist-packages/linear_system')
-from pid_control_py import PID, PIDInput, PIDSettings, PIDParameters
-from linear_system_py import LinearSystem, IntegrationMethod
+from pid_control import PID, PIDInput, PIDSettings, PIDParameters
+from linear_system import LinearSystem, IntegrationMethod
 
 class ProgressBar:
     def __init__(self, maxval = 100, width = 20):
@@ -51,9 +50,7 @@ class TestLinearSystem(unittest.TestCase):
         params.integration_method = IntegrationMethod.TUSTIN
         params.wrap = False
         params.saturate = True
-
         controller.configParameters(params)
-
         ctrl_in = Input.create(1.0, 0.9, 0.2, 0.3, 0)
         n_turns = 10
         time = 0
