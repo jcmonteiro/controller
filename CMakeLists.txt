@@ -7,6 +7,7 @@ set(LIBNAME "pid_control")
 find_package(Boost COMPONENTS unit_test_framework)
 find_package(linear_system REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(pybind11)
 
 include_directories("include" ${EIGEN3_INCLUDE_DIRS})
 set(LIBRARY_SOURCES
@@ -15,6 +16,26 @@ set(LIBRARY_SOURCES
 )
 add_library(${LIBNAME} SHARED "${LIBRARY_SOURCES}")
 target_link_libraries(${LIBNAME} linear_system)
+
+# Python bindings
+if (pybind11_FOUND)
+    pybind11_add_module(${LIBNAME}_py python/python_bindings.cpp)
+    target_link_libraries(${LIBNAME}_py PUBLIC ${LIBNAME})
+    set(BUILD_PYTHON_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LIBNAME}")
+    set_target_properties(${LIBNAME}_py
+        PROPERTIES
+        SUFFIX ".so"
+        LIBRARY_OUTPUT_DIRECTORY "${BUILD_PYTHON_DIR}"
+    )
+    configure_file(
+        "python/__init__.py"
+        "${BUILD_PYTHON_DIR}/__init__.py"
+    )
+    configure_file(
+        "python/setup.py"
+        "${BUILD_PYTHON_DIR}/setup.py"
+    )
+endif ()
 
 # Unit tests
 if (Boost_FOUND)
@@ -43,3 +64,9 @@ install(
     FILE "${LIBNAME}-config.cmake"
     DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/${LIBNAME}/cmake"
 )
+
+# Install python library
+if (pybind11_FOUND)
+    install(CODE "execute_process(COMMAND python3 setup.py install
+        --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${BUILD_PYTHON_DIR})")
+endif ()
