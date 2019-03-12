@@ -30,7 +30,7 @@ class ProgressBar:
 def computeError(vec1, vec2):
     return np.amax( np.absolute( vec1 - vec2 ) )
 
-class TestLinearSystem(unittest.TestCase):
+class TestPIDControl(unittest.TestCase):
     def test_pid(self):
         pid_settings = PIDSettings()
         pid_settings.B = 1
