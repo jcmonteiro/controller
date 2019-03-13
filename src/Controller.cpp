@@ -6,7 +6,7 @@
 using namespace controller;
 
 
-Controller::Controller(int N_controllers) :
+Controller::Controller(unsigned int N_controllers) :
     _N(N_controllers)
 {
     restart();

@@ -5,7 +5,7 @@
 using namespace controller;
 
 
-void FilteredController::updateFilters(Time time, const std::vector<Controller::Input> & inputs)
+void FilteredController::updateFilters(Time time, const std::vector<Input> & inputs)
 {
     if (inputs.size() != filters.size())
     {
@@ -21,6 +21,29 @@ void FilteredController::updateFilters(Time time, const std::vector<Controller::
         iter_filters->update(*iter_input, time);
         ++iter_input;
         ++iter_filters;
+    }
+}
+
+void FilteredController::_mapFilterInputs(const Input &ref, const Input &signal)
+{
+    mapFilterInputs(ref, signal, filters_inputs);
+    if (filters_inputs.size() != N_filters)
+        throw std::logic_error("[ERROR] (FilteredController::updateControl) <child class>::mapFilterInputs changed the filters inputs size when it shouldn't have!");
+}
+
+const Output & FilteredController::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
+{
+    _mapFilterInputs(ref, signal);
+    updateFilters(time, filters_inputs);
+    return last_output;
+}
+
+void FilteredController::configureFirstRun(Time time, const Input &ref, const Input &signal)
+{
+    _mapFilterInputs(ref, signal);
+    for (auto filter : filters)
+    {
+        filter.setInitialTime(time);
     }
 }
 

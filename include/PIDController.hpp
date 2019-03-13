@@ -75,11 +75,12 @@ private:
 
 protected:
     const Output & updateControl(Time time, const Input & ref, const Input & signal, const Output & last_output);
-
     void configureFirstRun(Time time, const Input &ref, const Input &signal);
 
+    void mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters);
+
 public:
-    PID(int N_controllers);
+    PID(unsigned int N_controllers);
 
     bool ok() const
     {

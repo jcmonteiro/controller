@@ -8,20 +8,20 @@ namespace controller
 {
 
 
+typedef Eigen::VectorXd Output;
+typedef Eigen::VectorXd Input;
+typedef int64_t Time;
+
+
 class Controller
 {
-public:
-    typedef Eigen::VectorXd Output;
-    typedef Eigen::VectorXd Input;
-    typedef int64_t Time;
-
 private:
     Output output;
     Time time_last;
     bool first_run;
 
 protected:
-    const int _N;
+    const unsigned int _N;
 
     /**
      * @brief updateControl Called every time #update is called so that the base class performs the actual control algorithm
@@ -42,7 +42,7 @@ protected:
     virtual void configureFirstRun(Time time, const Input &ref, const Input &signal);
 
 public:
-    explicit Controller(int N_controllers);
+    explicit Controller(unsigned int N_controllers);
 
     /**
      * @brief ok Checks if all parameters are set correctly.

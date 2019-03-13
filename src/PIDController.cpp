@@ -5,8 +5,8 @@
 using namespace controller;
 
 
-PID::PID(int N_controllers) :
-    FilteredController(N_controllers),
+PID::PID(unsigned int N_controllers) :
+    FilteredController(N_controllers, 2),
     mode_vel(Filtered),
     antiwindup(true)
 {
@@ -18,16 +18,22 @@ PID::PID(int N_controllers) :
     output_default.setZero(_N);
 }
 
-const Controller::Output &PID::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
+const Input &PID::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
 {
-    auto error = ref - signal;
-    updateFilters(time, {error, error});
+    FilteredController::update(time, ref, signal, last_output);
     return last_output;
 }
 
 void PID::configureFirstRun(Time time, const Input &ref, const Input &signal)
 {
     FilteredController::configureFirstRun(time, ref, signal);
+}
+
+void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters)
+{
+    auto error = ref - signal;
+    input_filters[0] = error;
+    input_filters[1] = error;
 }
 
 bool PID::configureFilters(const std::vector<SettingsFilters> & settings)
@@ -70,7 +76,7 @@ bool PID::configure(const std::vector<SettingsPID> &settings)
     return ok();
 }
 
-void PID::updateVelocities(const Controller::Input &dot_ref, const Controller::Input &dot_signal)
+void PID::updateVelocities(const Input &dot_ref, const Input &dot_signal)
 {
     if (mode_vel != Given)
     {
