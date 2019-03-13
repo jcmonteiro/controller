@@ -3,7 +3,7 @@
 #include <vector>
 #include "PID.hpp"
 
-namespace pid_control
+namespace controller
 {
 
 class PPI

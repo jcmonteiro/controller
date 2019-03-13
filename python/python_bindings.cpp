@@ -9,9 +9,9 @@
 #include "PID.hpp"
 
 namespace py = pybind11;
-using namespace pid_control;
+using namespace controller;
 
-PYBIND11_MODULE(pid_control_py, m) {
+PYBIND11_MODULE(controller_py, m) {
     py::class_<PID>(m, "PID")
         .def(py::init<>())
         .def("restart", &PID::restart)

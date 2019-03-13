@@ -1,7 +1,7 @@
 #include "PPI.hpp"
 
 
-using namespace pid_control;
+using namespace controller;
 
 
 void PPI::Inputs::checkDimensions(unsigned int dim) const

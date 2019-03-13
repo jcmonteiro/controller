@@ -2,7 +2,7 @@
 
 #include <linear_system/LinearSystem.hpp>
 
-namespace pid_control
+namespace controller
 {
 
 class PID

@@ -5,7 +5,7 @@
 #include "PID.hpp"
 #include "PPI.hpp"
 
-using namespace pid_control;
+using namespace controller;
 
 void printProgress(int width, float progress)
 {

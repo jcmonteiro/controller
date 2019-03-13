@@ -3,7 +3,7 @@
 #include <linear_system/HelperFunctions.hpp>
 
 
-using namespace pid_control;
+using namespace controller;
 
 
 void PID::Inputs::checkDimensions(unsigned int dim) const

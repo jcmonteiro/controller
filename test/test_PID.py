@@ -3,7 +3,7 @@ import unittest
 
 import sys
 sys.path.append('../build')
-from pid_control import PID, PIDInput, PIDSettings, PIDParameters
+from controller import PID, PIDInput, PIDSettings, PIDParameters
 from linear_system import LinearSystem, IntegrationMethod
 
 class ProgressBar:

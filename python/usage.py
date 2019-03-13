@@ -1,4 +1,4 @@
-from pid_control import PID, PIDSettings, PIDParameters, PIDInput
+from controller import PID, PIDSettings, PIDParameters, PIDInput
 from linear_system import LinearSystem, IntegrationMethod
 
 # settings for the first degree-of-freedom
