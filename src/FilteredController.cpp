@@ -49,9 +49,18 @@ void FilteredController::configureFirstRun(Time time, const Input &ref, const In
 {
     Controller::configureFirstRun(time, ref, signal);
     _mapFilterInputs(ref, signal);
-    for (auto &filter : filters)
+    auto iter_filters = filters.begin();
+    auto iter_inputs  = filters_inputs.cbegin();
+    while (iter_filters != filters.end())
     {
-        filter.setInitialTime(time);
+        iter_filters->setInitialTime(time);
+        iter_filters->setInitialState(
+            static_cast<Eigen::MatrixXd>(
+                iter_inputs->replicate(1, iter_filters->getOrder())
+            )
+        );
+        ++iter_filters;
+        ++iter_inputs;
     }
 }
 
