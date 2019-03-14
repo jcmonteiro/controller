@@ -15,7 +15,8 @@ SettingsPID::SettingsPID() :
 
 PID::PID(unsigned int N_controllers) :
     FilteredController(N_controllers, 2),
-    antiwindup(true), mode_velocity_filtered(true)
+    antiwindup(true), mode_velocity_filtered(true),
+    has_integral(true)
 {
     kp.setZero(_N);
     ki.setZero(_N);
@@ -104,6 +105,7 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
     }
 
     unsigned int k = 0;
+    has_integral = false;
     for (auto setting : settings)
     {
         kp[k] = setting.kp;
@@ -112,14 +114,27 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
         weight_reference[k] = setting.weight_reference;
         gain_antiwidnup[k]  = setting.gain_antiwidnup;
         ++k;
+
+        has_integral |= setting.ki != 0;
     }
 
     SettingsFilter integrator;
-    integrator.num.resize(2);
-    integrator.den.resize(2);
-    integrator.num << 0, 1;
-    integrator.den << 1, 0;
-    integrator.init_output_and_derivs.setZero(_N, 1);
+    if (has_integral)
+    {
+        integrator.num.resize(2);
+        integrator.den.resize(2);
+        integrator.num << 0, 1;
+        integrator.den << 1, 0;
+        integrator.init_output_and_derivs.setZero(_N, 1);
+    }
+    else
+    {
+        integrator.num.resize(1);
+        integrator.den.resize(1);
+        integrator.num << 0;
+        integrator.den << 1;
+        integrator.init_output_and_derivs.setZero(_N, 0);
+    }
     integrator.sampling_period = settings_velocity_filter.sampling_period;
     return configureFilters( {settings_velocity_filter, integrator} );
 }

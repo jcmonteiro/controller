@@ -43,7 +43,7 @@ class PID : public FilteredController
 private:
     typedef typename Eigen::VectorXd Gain;
 
-    bool antiwindup, mode_velocity_filtered;
+    bool antiwindup, mode_velocity_filtered, has_integral;
 
     Gain kp, ki, kd, gain_antiwidnup, weight_reference;
 
