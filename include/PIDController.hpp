@@ -8,13 +8,6 @@ namespace controller
 {
 
 
-enum PIDVelocityMode
-{
-    Filtered,
-    Given
-};
-
-
 struct SettingsPID
 {
     //! Proportional gain
@@ -50,25 +43,13 @@ class PID : public FilteredController
 private:
     typedef typename Eigen::VectorXd Gain;
 
-    PIDVelocityMode mode_vel;
-    bool antiwindup;
+    bool antiwindup, mode_velocity_filtered;
 
     Gain kp, ki, kd, gain_antiwidnup, weight_reference;
 
-    Input dot_ref, dot_signal;
+    Input dot_error;
 
     Output output_default;
-
-    void setVelocityMode(PIDVelocityMode mode)
-    {
-        switch (mode)
-        {
-        case Filtered:
-            break;
-        case Given:
-            break;
-        }
-    }
 
     static bool nonnegative(const Gain & gain)
     {
@@ -99,11 +80,12 @@ public:
         return output_default;
     }
 
-    bool configureFilters(const std::vector<SettingsFilters> & settings);
+    bool configureFilters(const std::vector<SettingsFilter> & settings);
 
-    bool configure(const std::vector<SettingsPID> & settings, const std::vector<SettingsFilters> &settings_filters);
+    bool configure(const std::vector<SettingsPID> & settings, double sampling);
+    bool configure(const std::vector<SettingsPID> & settings, const SettingsFilter &settings_velocity_filter);
 
-    void updateVelocities(const Input & dot_ref, const Input & dot_signal);
+    void updateVelocities(const Input & dot_error);
 };
 
 

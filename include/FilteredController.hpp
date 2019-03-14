@@ -9,7 +9,7 @@ namespace controller
 {
 
 
-struct SettingsFilters
+struct SettingsFilter
 {
     Eigen::VectorXd num, den;
     Eigen::MatrixXd init_output_and_derivs;
@@ -17,7 +17,7 @@ struct SettingsFilters
     double sampling_period;
     linear_system::IntegrationMethod method;
 
-    SettingsFilters();
+    SettingsFilter();
 };
 
 
@@ -59,7 +59,7 @@ protected:
      */
     virtual void mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters) = 0;
 
-    bool configureFilters(const std::vector<SettingsFilters> & settings);
+    bool configureFilters(const std::vector<SettingsFilter> & settings);
 
 public:
     explicit inline FilteredController(unsigned int N_controllers, unsigned int N_filters = 1) :

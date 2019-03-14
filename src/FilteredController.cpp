@@ -5,7 +5,7 @@
 using namespace controller;
 
 
-SettingsFilters::SettingsFilters() :
+SettingsFilter::SettingsFilter() :
     num(), den(), init_output_and_derivs(),
     prewarp(0), sampling_period(0), method(linear_system::TUSTIN)
 {
@@ -64,7 +64,7 @@ void FilteredController::configureFirstRun(Time time, const Input &ref, const In
     }
 }
 
-bool FilteredController::configureFilters(const std::vector<SettingsFilters> & settings)
+bool FilteredController::configureFilters(const std::vector<SettingsFilter> & settings)
 {
     N_filters = settings.size();
     filters.resize(N_filters);

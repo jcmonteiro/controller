@@ -15,8 +15,7 @@ SettingsPID::SettingsPID() :
 
 PID::PID(unsigned int N_controllers) :
     FilteredController(N_controllers, 2),
-    mode_vel(Filtered),
-    antiwindup(true)
+    antiwindup(true), mode_velocity_filtered(true)
 {
     kp.setZero(_N);
     ki.setZero(_N);
@@ -44,7 +43,7 @@ void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<Inp
     input_filters[1] = error;
 }
 
-bool PID::configureFilters(const std::vector<SettingsFilters> & settings)
+bool PID::configureFilters(const std::vector<SettingsFilter> & settings)
 {
     if (settings.size() != 2)
     {
@@ -56,7 +55,44 @@ bool PID::configureFilters(const std::vector<SettingsFilters> & settings)
     return FilteredController::configureFilters(settings);
 }
 
-bool PID::configure(const std::vector<SettingsPID> &settings, const std::vector<SettingsFilters> &settings_filters)
+bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
+{
+    double max_cutoff = 0;
+    for (const auto & s : settings)
+    {
+        if (s.kd <= 0)
+            continue;
+        double cutoff = s.kp / s.kd;
+        if (cutoff > max_cutoff)
+            max_cutoff = cutoff;
+    }
+    SettingsFilter velocity;
+    if (max_cutoff == 0)
+    {
+        // if we are here, all kd <= 0 and there is no derivative action
+        velocity.num.resize(1);
+        velocity.den.resize(1);
+        velocity.num << 0;
+        velocity.den << 1;
+        velocity.init_output_and_derivs.setZero(_N, 0);
+    }
+    else
+    {
+        // place the cutoff frequency two decades ahead
+        max_cutoff *= 20;
+        double damping = 0.9;
+        double wn = max_cutoff / damping;
+        velocity.num.resize(3);
+        velocity.den.resize(3);
+        velocity.num << 0, wn*wn, 0;
+        velocity.den << 1, 2*damping*wn, wn*wn;
+        velocity.init_output_and_derivs.setZero(_N, 2);
+    }
+    velocity.sampling_period = sampling;
+    return configure(settings, velocity);
+}
+
+bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilter &settings_velocity_filter)
 {
     if (settings.size() != _N)
     {
@@ -78,16 +114,22 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const std::vector<
         ++k;
     }
 
-    return configureFilters(settings_filters);
+    SettingsFilter integrator;
+    integrator.num.resize(2);
+    integrator.den.resize(2);
+    integrator.num << 0, 1;
+    integrator.den << 1, 0;
+    integrator.init_output_and_derivs.setZero(_N, 1);
+    integrator.sampling_period = settings_velocity_filter.sampling_period;
+    return configureFilters( {settings_velocity_filter, integrator} );
 }
 
-void PID::updateVelocities(const Input &dot_ref, const Input &dot_signal)
+void PID::updateVelocities(const Input &dot_error)
 {
-    if (mode_vel != Given)
+    if (mode_velocity_filtered)
     {
-        std::cerr << "[WARN] (PID::updateVelocities) Velocity mode is not to Given, so I refuse to directly updated it!" << std::endl;
+        std::cerr << "[WARN] (PID::updateVelocities) Error velocity is computed inside the PID, so I refuse to directly updated it!" << std::endl;
         return;
     }
-    this->dot_ref = dot_ref;
-    this->dot_signal = dot_signal;
+    this->dot_error = dot_error;
 }
