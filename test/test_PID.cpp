@@ -67,8 +67,6 @@ void testReset(Controller &controller)
 
 void testInputChannels(Controller &controller)
 {
-    // run twice and see if we get the same results
-    // this should verify that restart is working properly
     const unsigned int N = controller.size();
     Input ref(N), sig(N);
     ref.setConstant(23.43);
@@ -88,6 +86,46 @@ void testInputChannels(Controller &controller)
         out = controller.getOutput();
         if ( ((out.array() - out[0]) != 0).any() )
             BOOST_ERROR("found different output values while sending the same inputs to all controller channels");
+    }
+}
+
+void testStepResponse(Controller &controller, double timeout, double settling_time, double final_ratio)
+{
+    Input ref(1);
+    ref.setConstant(1);
+
+    linear_system::LinearSystem plant;
+    Eigen::VectorXd num(3), den(3);
+    num << 0, 0, 1;
+    den << 1, 0, 0;
+    plant.setFilter(num, den);
+    plant.setSampling(0.001);
+    Eigen::MatrixXd init_out(1, 2);
+    init_out << 0, 0;
+    plant.setInitialOutputDerivatives(init_out);
+    plant.discretizeSystem();
+
+    Eigen::MatrixXd init_in(1, 2);
+    init_in.setZero();
+    plant.setInitialState(init_in);
+
+    double time = 0, dt = 0.01;
+    plant.setInitialTime(time);
+    while (time < timeout)
+    {
+        controller.update(
+            linear_system::LinearSystem::getTimeFromSeconds(time),
+            ref,
+            plant.getOutput(),
+            plant.getOutput()
+        );
+        plant.update(controller.getOutput(), linear_system::LinearSystem::getTimeFromSeconds(time));
+        if (time > settling_time)
+        {
+            if ( std::abs( plant.getOutput()[0]/ref[0] - 1 ) >= final_ratio )
+                BOOST_ERROR("PID did not meet the required performance");
+        }
+        time += dt;
     }
 }
 
@@ -126,4 +164,15 @@ BOOST_AUTO_TEST_CASE(test_reset)
     pid.configure(settings_all, 0.2);
     //
     testInputChannels(pid);
+}
+
+BOOST_AUTO_TEST_CASE(test_step_response)
+{
+    std::cout << "[TEST] step response" << std::endl;
+    //
+    PID pid(1);
+    double damp = 0.7, cutoff = 4, ratio = 5, sampling = 0.002;
+    pid.configure(SettingsPID::create(damp, cutoff, ratio), sampling);
+    //
+    testStepResponse(pid, 1, 0.8, 0.05);
 }
