@@ -5,6 +5,13 @@
 using namespace controller;
 
 
+SettingsFilters::SettingsFilters() :
+    num(), den(), init_output_and_derivs(),
+    prewarp(0), sampling_period(0), method(linear_system::TUSTIN)
+{
+}
+
+
 void FilteredController::updateFilters(Time time, const std::vector<Input> & inputs)
 {
     if (inputs.size() != filters.size())
@@ -40,8 +47,9 @@ const Output & FilteredController::updateControl(Time time, const Input &ref, co
 
 void FilteredController::configureFirstRun(Time time, const Input &ref, const Input &signal)
 {
+    Controller::configureFirstRun(time, ref, signal);
     _mapFilterInputs(ref, signal);
-    for (auto filter : filters)
+    for (auto &filter : filters)
     {
         filter.setInitialTime(time);
     }
@@ -51,31 +59,36 @@ bool FilteredController::configureFilters(const std::vector<SettingsFilters> & s
 {
     N_filters = settings.size();
     filters.resize(N_filters);
+    filters_inputs.resize(N_filters);
 
     if (settings.empty())
     {
-        std::cerr << "[WARN] (FilteredController::setNFilters) I have no filters! Is this intended?" << std::endl;
+        std::cerr << "[WARN] (FilteredController::configureFilters) I have no filters! Is this intended?" << std::endl;
         return ok();
     }
 
     auto iter_settings = settings.cbegin();
     auto iter_filters  = filters.begin();
+    auto iter_inputs   = filters_inputs.begin();
     while (iter_settings != settings.cend())
     {
         iter_filters->setIntegrationMethod(iter_settings->method);
         iter_filters->setSampling(iter_settings->sampling_period);
         iter_filters->setFilter(iter_settings->num, iter_settings->den);
-        iter_filters->useNFilters(iter_settings->n_filters);
+        iter_filters->useNFilters(_N);
         iter_filters->setInitialOutputDerivatives(iter_settings->init_output_and_derivs);
+        iter_inputs->setZero(_N);
         ++iter_settings;
         ++iter_filters;
+        ++iter_inputs;
     }
 
     if (!ok())
     {
-        std::cerr << "[WARN] (FilteredController::setNFilters) Failed to configure filters!" << std::endl;
+        std::cerr << "[WARN] (FilteredController::configureFilters) Failed to configure filters!" << std::endl;
         N_filters = 0;
         filters.resize(0);
+        filters_inputs.resize(0);
         return false;
     }
     return true;

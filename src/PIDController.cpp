@@ -5,6 +5,14 @@
 using namespace controller;
 
 
+SettingsPID::SettingsPID() :
+    kp(0), ki(0), kd(0),
+    weight_reference(1),
+    gain_antiwidnup(0)
+{
+}
+
+
 PID::PID(unsigned int N_controllers) :
     FilteredController(N_controllers, 2),
     mode_vel(Filtered),
@@ -20,7 +28,7 @@ PID::PID(unsigned int N_controllers) :
 
 const Input &PID::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
 {
-    FilteredController::update(time, ref, signal, last_output);
+    FilteredController::updateControl(time, ref, signal, last_output);
     return last_output;
 }
 
@@ -31,7 +39,7 @@ void PID::configureFirstRun(Time time, const Input &ref, const Input &signal)
 
 void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters)
 {
-    auto error = ref - signal;
+    Input error = ref - signal;
     input_filters[0] = error;
     input_filters[1] = error;
 }
@@ -45,13 +53,10 @@ bool PID::configureFilters(const std::vector<SettingsFilters> & settings)
         FilteredController::configureFilters({});
         return false;
     }
-    auto settings_copy = settings;
-    for (auto & s : settings_copy)
-        s.n_filters = _N;
-    return FilteredController::configureFilters(settings_copy);
+    return FilteredController::configureFilters(settings);
 }
 
-bool PID::configure(const std::vector<SettingsPID> &settings)
+bool PID::configure(const std::vector<SettingsPID> &settings, const std::vector<SettingsFilters> &settings_filters)
 {
     if (settings.size() != _N)
     {
@@ -73,7 +78,7 @@ bool PID::configure(const std::vector<SettingsPID> &settings)
         ++k;
     }
 
-    return ok();
+    return configureFilters(settings_filters);
 }
 
 void PID::updateVelocities(const Input &dot_ref, const Input &dot_signal)

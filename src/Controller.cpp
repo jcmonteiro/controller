@@ -26,6 +26,13 @@ void Controller::configureFirstRun(Time time, const Input &, const Input &)
 
 void Controller::update(Time time, const Input &ref, const Input &signal, const Output &last_output)
 {
+    if (ref.size() != _N || signal.size() != _N || last_output.size() != _N)
+    {
+        std::stringstream error;
+        error << "[ERROR] (Controller::update) the size of at least one argument != "
+              << _N << ", which is the controller dimension";
+        throw std::logic_error(error.str());
+    }
     if (time <= time_last)
     {
         if (first_run)

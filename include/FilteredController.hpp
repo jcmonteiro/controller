@@ -15,8 +15,9 @@ struct SettingsFilters
     Eigen::MatrixXd init_output_and_derivs;
     double prewarp;
     double sampling_period;
-    unsigned int n_filters;
     linear_system::IntegrationMethod method;
+
+    SettingsFilters();
 };
 
 
@@ -47,6 +48,8 @@ protected:
      */
     virtual const Output & updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output);
 
+    virtual void configureFirstRun(Time time, const Input &ref, const Input &signal);
+
     /**
      * @brief mapFilterInputs Map the received inputs onto the filters input vector
      *
@@ -56,7 +59,7 @@ protected:
      */
     virtual void mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters) = 0;
 
-    virtual void configureFirstRun(Time time, const Input &ref, const Input &signal);
+    bool configureFilters(const std::vector<SettingsFilters> & settings);
 
 public:
     explicit inline FilteredController(unsigned int N_controllers, unsigned int N_filters = 1) :
@@ -71,8 +74,6 @@ public:
     {
         return filters.size() == N_filters && filters_inputs.size() == N_filters;
     }
-
-    bool configureFilters(const std::vector<SettingsFilters> & settings);
 };
 
 

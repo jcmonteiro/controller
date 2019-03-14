@@ -40,6 +40,8 @@ struct SettingsPID
      * - = 0 and Td > 0  Tt = sqrt(Ti * Td)
      * */
     double gain_antiwidnup;
+
+    SettingsPID();
 };
 
 
@@ -99,7 +101,7 @@ public:
 
     bool configureFilters(const std::vector<SettingsFilters> & settings);
 
-    bool configure(const std::vector<SettingsPID> & settings);
+    bool configure(const std::vector<SettingsPID> & settings, const std::vector<SettingsFilters> &settings_filters);
 
     void updateVelocities(const Input & dot_ref, const Input & dot_signal);
 };
