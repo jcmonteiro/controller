@@ -94,6 +94,11 @@ public:
         return output;
     }
 
+    inline unsigned int size() const
+    {
+        return _N;
+    }
+
 };
 
 

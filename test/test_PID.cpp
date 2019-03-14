@@ -2,8 +2,7 @@
 
 #include <boost/test/unit_test.hpp>
 #include <iostream>
-#include "PID.hpp"
-#include "PPI.hpp"
+#include "PIDController.hpp"
 
 using namespace controller;
 
@@ -26,74 +25,105 @@ void printProgress(int width, float progress)
         std::cout << std::endl;
 }
 
-template <class Controller>
-void testControllerClassMethods(const typename Controller::ParallelSettings &settings)
+void testReset(Controller &controller)
 {
-    typedef typename Controller::Inputs Input;
-    typedef typename Controller::Outputs Output;
-    typedef typename Controller::Parameters Parameters;
-    typedef typename Controller::ParallelSettings Settings;
-
-    Parameters params;
-    std::vector<Settings> vec_settings;
-    vec_settings.push_back(settings);
-    params.setSettings(vec_settings);
-    params.integration_method = linear_system::TUSTIN;
-    params.saturate = true;
-    params.wrap_2pi = false;
-    //
-    Controller controller;
-    controller.configParameters(params);
-
     // run twice and see if we get the same results
     // this should verify that restart is working properly
-    auto input = Input::create(1.0, 0.9, 0.2, 0.3, 0);
-    Output output;
+    const unsigned int N = controller.size();
+    Input ref(N), sig(N);
+    ref << 1, 0.8;
+    ref << 0.5, 0.6;
+    Output out = controller.getDefaultOutput();
     double time = 0, dt = 1;
     unsigned int n_turns = 10;
-    std::vector<double> history(n_turns);
+    std::vector<Output> history(n_turns);
     controller.restart();
     for (unsigned int k = 0; k < n_turns; ++k)
     {
-        input.time = linear_system::LinearSystem::getTimeFromSeconds( time += dt );
-        output = controller.update(input);
-        history[k] = output.getValue()[0];
+        controller.update(
+            linear_system::LinearSystem::getTimeFromSeconds( time += dt ),
+            ref,
+            sig,
+            out
+        );
+        history[k] = controller.getOutput();
     }
     controller.restart();
+    out = controller.getDefaultOutput();
     time = 0;
     for (unsigned int k = 0; k < n_turns; ++k)
     {
-        input.time = linear_system::LinearSystem::getTimeFromSeconds( time += dt );
-        output = controller.update(input);
-        if (std::abs(history[k] - output.getValue()[0]) != 0)
+        controller.update(
+            linear_system::LinearSystem::getTimeFromSeconds( time += dt ),
+            ref,
+            sig,
+            out
+        );
+        out = controller.getOutput();
+        if ( ((out - history[k]).array() != 0).any() )
             BOOST_ERROR("found different output values when running the same controller twice");
     }
 }
 
-BOOST_AUTO_TEST_CASE(test_class_methods)
+void testInputChannels(Controller &controller)
 {
-    std::cout << "[TEST] class basic methods" << std::endl;
+    // run twice and see if we get the same results
+    // this should verify that restart is working properly
+    const unsigned int N = controller.size();
+    Input ref(N), sig(N);
+    ref.setConstant(23.43);
+    sig.setConstant(11.33);
+    Output out = controller.getDefaultOutput();
+    double time = 0, dt = 1;
+    unsigned int n_turns = 10;
+    controller.restart();
+    for (unsigned int k = 0; k < n_turns; ++k)
+    {
+        controller.update(
+            linear_system::LinearSystem::getTimeFromSeconds( time += dt ),
+            ref,
+            sig,
+            out
+        );
+        out = controller.getOutput();
+        if ( ((out.array() - out[0]) != 0).any() )
+            BOOST_ERROR("found different output values while sending the same inputs to all controller channels");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_channels)
+{
+    std::cout << "[TEST] same input to multiple channels" << std::endl;
     //
-    PID::ParallelSettings pid_settings;
-    pid_settings.B = 1;
-    pid_settings.Ki = 5;
-    pid_settings.Kd = 0.2;
-    pid_settings.Kp = 19;
-    pid_settings.Tt = 1 / pid_settings.Ki;
-    pid_settings.Ts = 1;
-    pid_settings.YMin = -10;
-    pid_settings.YMax = 10;
+    PID pid(2);
+
+    SettingsPID settings;
+    settings.kp = 1;
+    settings.kd = 0.2;
+    settings.ki = 2;
+
+    pid.configure({settings, settings}, 0.2);
     //
-    PPI::ParallelSettings ppi_settings;
-    ppi_settings.B = 1;
-    ppi_settings.Ki = 16;
-    ppi_settings.Kp2 = 8;
-    ppi_settings.Kp1 = 2;
-    ppi_settings.Tt = 1 / ppi_settings.Ki;
-    ppi_settings.Ts = 1;
-    ppi_settings.YMin = -10;
-    ppi_settings.YMax = 10;
+    testReset(pid);
+}
+
+BOOST_AUTO_TEST_CASE(test_reset)
+{
+    std::cout << "[TEST] reset" << std::endl;
     //
-    testControllerClassMethods<PID>(pid_settings);
-    testControllerClassMethods<PPI>(ppi_settings);
+    unsigned int N = 20;
+    PID pid(N);
+
+    SettingsPID settings;
+    settings.kp = 1;
+    settings.kd = 0.2;
+    settings.ki = 2;
+
+    std::vector<SettingsPID> settings_all(N);
+    for (auto &s : settings_all)
+        s = settings;
+
+    pid.configure(settings_all, 0.2);
+    //
+    testInputChannels(pid);
 }

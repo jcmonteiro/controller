@@ -11,8 +11,9 @@ find_package(pybind11)
 
 include_directories("include" ${EIGEN3_INCLUDE_DIRS})
 set(LIBRARY_SOURCES
-    src/PID.cpp
-    src/PPI.cpp
+    src/Controller.cpp
+    src/FilteredController.cpp
+    src/PIDController.cpp
 )
 add_library(${LIBNAME} SHARED "${LIBRARY_SOURCES}")
 target_link_libraries(${LIBNAME} linear_system)
