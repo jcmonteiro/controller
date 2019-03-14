@@ -35,6 +35,38 @@ struct SettingsPID
     double gain_antiwidnup;
 
     SettingsPID();
+
+    /**
+     * @brief Generate a SettingsPID object to implement a PID with gains designed to produce the denominator of
+     *
+     * \f[
+     *      \frac{u(s)}{e(s)} = \frac{\omega^2_n}{s^2 + 2\zeta\omega_n s + \omega^2_n}
+     *      \times  \frac{r \omega_c}{s + r \omega_c }
+     *      \quad ; \quad
+     *      \omega_n = \frac{\omega_c}{\zeta}
+     * \f]
+     *
+     * @param damping Damping coefficient \f$\zeta\f$.
+     * @param cutoff Resonance frequency \f$\omega_c\f$.
+     * @param far_pole_ratio Far pole ratio \f$r\f$ w.r.t. the cutoff frequency, typically between 4 and 10.
+     * @return An instance of SettingsPID with kp, ki, and kd designed to meet the specifications.
+     */
+    static SettingsPID create(double damping, double cutoff, double far_pole_ratio);
+
+    /**
+     * @brief Generate a SettingsPID object to implement a PD with gains designed to produce the denominator of
+     *
+     * \f[
+     *      \frac{u(s)}{e(s)} =  = \frac{\omega^2_n}{s^2 + 2\zeta\omega_n s + \omega^2_n}
+     *      \quad ; \quad
+     *      \omega_n = \frac{\omega_c}{\zeta}
+     * \f]
+     *
+     * @param damping Damping coefficient \f$\zeta\f$.
+     * @param cutoff Resonance frequency \f$\omega_c\f$.
+     * @return An instance of SettingsPID with kp, ki = 0, and kd designed to meet the specifications.
+     */
+    static SettingsPID create(double damping, double cutoff);
 };
 
 
@@ -84,6 +116,22 @@ public:
 
     bool configure(const std::vector<SettingsPID> & settings, double sampling);
     bool configure(const std::vector<SettingsPID> & settings, const SettingsFilter &settings_velocity_filter);
+
+    /**
+     * @brief Calls #configure(const std::vector<SettingsPID> &, double) and configure every PID with \p settings.
+     * @param settings Settings used for every PID channel.
+     * @param sampling Controller sampling period.
+     * @return
+     */
+    bool configure(const SettingsPID &settings, double sampling);
+
+    /**
+     * @brief Calls #configure(const std::vector<SettingsPID> &, const SettingsFilter &) and configure every PID with \p settings.
+     * @param settings Settings used for every PID channel.
+     * @param settings_velocity_filter Settings for the derivative filter.
+     * @return
+     */
+    bool configure(const SettingsPID &settings, const SettingsFilter &settings_velocity_filter);
 
     void updateVelocities(const Input & dot_error);
 };

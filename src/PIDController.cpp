@@ -12,6 +12,30 @@ SettingsPID::SettingsPID() :
 {
 }
 
+SettingsPID SettingsPID::create(double damping, double cutoff, double far_pole_ratio)
+{
+    SettingsPID ret;
+    double wn = cutoff / damping;
+    ret.kp = wn*wn * (1 + 2*damping*damping*far_pole_ratio);
+    ret.ki = far_pole_ratio * damping * wn*wn*wn;
+    ret.kd = damping * wn * (far_pole_ratio + 2);
+    ret.gain_antiwidnup = 1 / ret.ki;
+    ret.weight_reference = 1;
+    return ret;
+}
+
+SettingsPID SettingsPID::create(double damping, double cutoff)
+{
+    SettingsPID ret;
+    double wn = cutoff / damping;
+    ret.kp = wn*wn;
+    ret.ki = 0;
+    ret.kd = 2 * damping * wn;
+    ret.gain_antiwidnup = 0;
+    ret.weight_reference = 1;
+    return ret;
+}
+
 
 PID::PID(unsigned int N_controllers) :
     FilteredController(N_controllers, 2),
@@ -140,6 +164,22 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
     }
     integrator.sampling_period = settings_velocity_filter.sampling_period;
     return configureFilters( {settings_velocity_filter, integrator} );
+}
+
+bool PID::configure(const SettingsPID &settings, double sampling)
+{
+    std::vector<SettingsPID> settings_vector( size() );
+    for (auto &s : settings_vector)
+        s = settings;
+    return configure(settings_vector, sampling);
+}
+
+bool PID::configure(const SettingsPID &settings, const SettingsFilter &settings_velocity_filter)
+{
+    std::vector<SettingsPID> settings_vector( size() );
+    for (auto &s : settings_vector)
+        s = settings;
+    return configure(settings_vector, settings_velocity_filter);
 }
 
 void PID::updateVelocities(const Input &dot_error)
