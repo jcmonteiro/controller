@@ -61,6 +61,11 @@ protected:
 
     bool configureFilters(const std::vector<SettingsFilter> & settings);
 
+    inline const std::vector<linear_system::LinearSystem> & getFilters()
+    {
+        return filters;
+    }
+
 public:
     explicit inline FilteredController(unsigned int N_controllers, unsigned int N_filters = 1) :
         Controller(N_controllers),

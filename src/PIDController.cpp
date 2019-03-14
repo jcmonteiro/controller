@@ -26,10 +26,13 @@ PID::PID(unsigned int N_controllers) :
     output_default.setZero(_N);
 }
 
-const Input &PID::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
+const Output & PID::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
 {
     FilteredController::updateControl(time, ref, signal, last_output);
-    return last_output;
+    output = kp.cwiseProduct(weight_reference.cwiseProduct(ref) - signal)
+               + kd.cwiseProduct( getFilters()[0].getOutput() )
+               + getFilters()[1].getOutput();
+    return output;
 }
 
 void PID::configureFirstRun(Time time, const Input &ref, const Input &signal)
@@ -41,7 +44,7 @@ void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<Inp
 {
     Input error = ref - signal;
     input_filters[0] = error;
-    input_filters[1] = error;
+    input_filters[1] = ki.cwiseProduct(error);
 }
 
 bool PID::configureFilters(const std::vector<SettingsFilter> & settings)

@@ -86,6 +86,7 @@ bool FilteredController::configureFilters(const std::vector<SettingsFilter> & se
         iter_filters->setFilter(iter_settings->num, iter_settings->den);
         iter_filters->useNFilters(_N);
         iter_filters->setInitialOutputDerivatives(iter_settings->init_output_and_derivs);
+        iter_filters->discretizeSystem();
         iter_inputs->setZero(_N);
         ++iter_settings;
         ++iter_filters;

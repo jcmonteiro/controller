@@ -49,7 +49,7 @@ private:
 
     Input dot_error;
 
-    Output output_default;
+    Output output_default, output;
 
     static bool nonnegative(const Gain & gain)
     {
