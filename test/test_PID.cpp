@@ -89,17 +89,17 @@ void testInputChannels(Controller &controller)
     }
 }
 
-void testStepResponse(Controller &controller, double timeout, double settling_time, double final_ratio)
+void testStepResponse(Controller &controller, double timeout, double settling_time, double ratio_at_eighty, double ratio_final)
 {
     Input ref(1);
-    ref.setConstant(1);
+    ref.setConstant(123);
 
     linear_system::LinearSystem plant;
     Eigen::VectorXd num(3), den(3);
     num << 0, 0, 1;
     den << 1, 0, 0;
     plant.setFilter(num, den);
-    plant.setSampling(0.001);
+    plant.setSampling(timeout / 1000);
     Eigen::MatrixXd init_out(1, 2);
     init_out << 0, 0;
     plant.setInitialOutputDerivatives(init_out);
@@ -109,8 +109,9 @@ void testStepResponse(Controller &controller, double timeout, double settling_ti
     init_in.setZero();
     plant.setInitialState(init_in);
 
-    double time = 0, dt = 0.01;
+    double time = 0, dt = timeout / 1000;
     plant.setInitialTime(time);
+    controller.restart();
     while (time < timeout)
     {
         controller.update(
@@ -122,10 +123,27 @@ void testStepResponse(Controller &controller, double timeout, double settling_ti
         plant.update(controller.getOutput(), linear_system::LinearSystem::getTimeFromSeconds(time));
         if (time > settling_time)
         {
-            if ( std::abs( plant.getOutput()[0]/ref[0] - 1 ) >= final_ratio )
-                BOOST_ERROR("PID did not meet the required performance");
+            if ( std::abs( plant.getOutput()[0]/ref[0] - 1 ) >= ratio_at_eighty )
+            {
+                std::stringstream error;
+                error << "PID did not meet the required performance at " << time
+                      << ". Timeout is " << timeout << "." << std::endl
+                      << "(ref , out): (" << ref[0] << " , " << plant.getOutput()[0]
+                      << ")";
+                BOOST_ERROR(error.str());
+                return;
+            }
         }
         time += dt;
+    }
+    if ( std::abs( plant.getOutput()[0]/ref[0] - 1 ) >= ratio_final )
+    {
+        std::stringstream error;
+        error << "PID did not meet the required final performance: "
+              << "(ref , out) = (" << 1 << " , " << plant.getOutput()[0]/ref[0]
+              << ")";
+        BOOST_ERROR(error.str());
+        return;
     }
 }
 
@@ -171,8 +189,12 @@ BOOST_AUTO_TEST_CASE(test_step_response)
     std::cout << "[TEST] step response" << std::endl;
     //
     PID pid(1);
-    double damp = 0.7, cutoff = 4, ratio = 5, sampling = 0.002;
-    pid.configure(SettingsPID::create(damp, cutoff, ratio), sampling);
-    //
-    testStepResponse(pid, 1, 0.8, 0.05);
+    double ts_array[] = {0.1, 1, 10, 100, 1000, 20000};
+    for (double ts : ts_array)
+    {
+        double damp = 0.7, cutoff = 1/ts * 4, ratio = 10, sampling = ts / 1000;
+        pid.configure(SettingsPID::create(damp, cutoff, ratio), sampling);
+        //
+        testStepResponse(pid, ts, 0.85*ts, 0.05, 0.01);
+    }
 }

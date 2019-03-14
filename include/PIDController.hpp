@@ -46,8 +46,14 @@ struct SettingsPID
      *      \omega_n = \frac{\omega_c}{\zeta}
      * \f]
      *
+     * A general rule of thumb for choosing the cutoff frequency \f$\omega_c\f$, if you don't wish to set
+     * it based on frequency analysis, is to set it to \f$ \omega_c = 4\zeta t_s \f$, where \f$ t_s \f$ corresponds
+     * to the desired settling time.
+     *
+     * This choice ensures step-response error < 5% for t > 80%  \f$t_s\f$ and error < 1% for t >\f$t_s\f$.
+     *
      * @param damping Damping coefficient \f$\zeta\f$.
-     * @param cutoff Resonance frequency \f$\omega_c\f$.
+     * @param cutoff Cutoff frequency \f$\omega_c\f$.
      * @param far_pole_ratio Far pole ratio \f$r\f$ w.r.t. the cutoff frequency, typically between 4 and 10.
      * @return An instance of SettingsPID with kp, ki, and kd designed to meet the specifications.
      */
@@ -62,8 +68,14 @@ struct SettingsPID
      *      \omega_n = \frac{\omega_c}{\zeta}
      * \f]
      *
+     * A general rule of thumb for choosing the cutoff frequency \f$\omega_c\f$, if you don't wish to set
+     * it based on frequency analysis, is to set it to \f$ \omega_c = 4\zeta t_s \f$, where \f$ t_s \f$ corresponds
+     * to the desired settling time.
+     *
+     * This choice ensures step-response error < 5% for t > 80%  \f$t_s\f$ and error < 1% for t >\f$t_s\f$.
+     *
      * @param damping Damping coefficient \f$\zeta\f$.
-     * @param cutoff Resonance frequency \f$\omega_c\f$.
+     * @param cutoff Cutoff frequency \f$\omega_c\f$.
      * @return An instance of SettingsPID with kp, ki = 0, and kd designed to meet the specifications.
      */
     static SettingsPID create(double damping, double cutoff);

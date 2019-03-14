@@ -76,6 +76,13 @@ bool FilteredController::configureFilters(const std::vector<SettingsFilter> & se
         return ok();
     }
 
+    double max_sampling = 0;
+    for (auto s : settings)
+    {
+        if (s.sampling_period > max_sampling)
+            max_sampling = s.sampling_period;
+    }
+
     auto iter_settings = settings.cbegin();
     auto iter_filters  = filters.begin();
     auto iter_inputs   = filters_inputs.begin();
@@ -83,6 +90,7 @@ bool FilteredController::configureFilters(const std::vector<SettingsFilter> & se
     {
         iter_filters->setIntegrationMethod(iter_settings->method);
         iter_filters->setSampling(iter_settings->sampling_period);
+        iter_filters->setMaximumTimeBetweenUpdates(10 * max_sampling);
         iter_filters->setFilter(iter_settings->num, iter_settings->den);
         iter_filters->useNFilters(_N);
         iter_filters->setInitialOutputDerivatives(iter_settings->init_output_and_derivs);
