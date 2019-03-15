@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE(test_step_response)
             double sampling = settings.getSuggestedSampling();
             pid.configure(settings, sampling);
             //
-            testStepResponse(pid, settings, sampling, settings.getSettlingTime(), tol_ratio_overshoot * settings.getOvershoot(), tol_settling_error);
+            testStepResponse(pid, settings, sampling, ts, tol_ratio_overshoot * over, tol_settling_error);
         }
     }
 }
