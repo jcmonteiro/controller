@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(test_step_response)
     {
         for (double ts : ts_array)
         {
-            auto settings = SettingsPID::createT(over, ts);
+            auto settings = SettingsPID::createFromSpecT(over, ts);
             double sampling = settings.getSuggestedSampling();
             pid.configure(settings, sampling);
             //

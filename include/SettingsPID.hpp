@@ -95,7 +95,7 @@ public:
      * @return An instance of SettingsPID with kp, ki, and kd designed to meet the specifications.
      * @throws std::logic_error If parameters are not in a valid range.
      */
-    static SettingsPID createT(double overshoot, double settling_time);
+    static SettingsPID createFromSpecT(double overshoot, double settling_time);
 
     /**
      * @brief Generate a SettingsPID instance to implement a PID with gains designed to produce the denominator of
@@ -120,7 +120,7 @@ public:
      * @return An instance of SettingsPID with kp, ki, and kd designed to meet the specifications.
      * @throws std::logic_error If parameters are not in a valid range.
      */
-    static SettingsPID createF(double damping, double cutoff, double far_pole_ratio);
+    static SettingsPID createFromSpecF(double damping, double cutoff, double far_pole_ratio);
 
     /**
      * @brief Generate a SettingsPID instance to implement a PD with gains designed to produce the denominator of
@@ -142,7 +142,7 @@ public:
      * @return An instance of SettingsPID with kp, ki = 0, and kd designed to meet the specifications.
      * @throws std::logic_error If parameters are not in a valid range.
      */
-    static SettingsPID createF(double damping, double cutoff);
+    static SettingsPID createFromSpecF(double damping, double cutoff);
 };
 
 

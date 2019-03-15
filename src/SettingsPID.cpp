@@ -103,7 +103,7 @@ double SettingsPID::getSuggestedSampling()
     return std::min(sampling, getSettlingTime() / 100);
 }
 
-SettingsPID SettingsPID::createT(double overshoot, double settling_time)
+SettingsPID SettingsPID::createFromSpecT(double overshoot, double settling_time)
 {
     if (overshoot < 0)
         throw std::logic_error("[ERROR] (SettingsPID::createT) overshoot must lie in [0,1]");
@@ -123,10 +123,10 @@ SettingsPID SettingsPID::createT(double overshoot, double settling_time)
         damp = 1;
         cutoff = 5.8337 / settling_time;
     }
-    return createF(damp, cutoff, 10);
+    return createFromSpecF(damp, cutoff, 10);
 }
 
-SettingsPID SettingsPID::createF(double damping, double cutoff, double far_pole_ratio)
+SettingsPID SettingsPID::createFromSpecF(double damping, double cutoff, double far_pole_ratio)
 {
     if (damping <= 0)
         throw std::logic_error("[ERROR] (SettingsPID::createF) damping must lie in (0, 2]");
@@ -147,7 +147,7 @@ SettingsPID SettingsPID::createF(double damping, double cutoff, double far_pole_
     return ret;
 }
 
-SettingsPID SettingsPID::createF(double damping, double cutoff)
+SettingsPID SettingsPID::createFromSpecF(double damping, double cutoff)
 {
     SettingsPID ret;
     double wn = cutoff / damping;
