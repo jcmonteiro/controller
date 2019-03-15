@@ -14,6 +14,7 @@ set(LIBRARY_SOURCES
     src/Controller.cpp
     src/FilteredController.cpp
     src/PIDController.cpp
+    src/SettingsPID.cpp
 )
 add_library(${LIBNAME} SHARED "${LIBRARY_SOURCES}")
 target_link_libraries(${LIBNAME} linear_system)
