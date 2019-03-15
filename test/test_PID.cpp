@@ -89,61 +89,82 @@ void testInputChannels(Controller &controller)
     }
 }
 
-void testStepResponse(Controller &controller, double timeout, double settling_time, double ratio_at_eighty, double ratio_final)
+void testStepResponse(Controller &controller, const SettingsPID &settings, double sampling, double time_settling, double max_overshoot, double tol_settling_error)
 {
     Input ref(1);
-    ref.setConstant(123);
+    ref.setConstant(1);
 
     linear_system::LinearSystem plant;
     Eigen::VectorXd num(3), den(3);
     num << 0, 0, 1;
     den << 1, 0, 0;
     plant.setFilter(num, den);
-    plant.setSampling(timeout / 1000);
+    plant.setSampling(sampling);
     Eigen::MatrixXd init_out(1, 2);
     init_out << 0, 0;
     plant.setInitialOutputDerivatives(init_out);
     plant.discretizeSystem();
 
-    Eigen::MatrixXd init_in(1, 2);
-    init_in.setZero();
-    plant.setInitialState(init_in);
+    linear_system::LinearSystem prefilter;
+    Eigen::VectorXd num_filter(3), den_filter(3);
+    num_filter << 0, 0, settings.ki;
+    den_filter << settings.kd, settings.kp, settings.ki;
+    prefilter.setFilter(num_filter, den_filter);
+    prefilter.setSampling(sampling);
+    Eigen::MatrixXd init_out_filter(1, 2);
+    init_out_filter << plant.getOutput()[0], 0;
+    prefilter.setInitialOutputDerivatives(init_out_filter);
+    prefilter.discretizeSystem();
 
-    double time = 0, dt = timeout / 1000;
+    Eigen::MatrixXd init_in(1, 2), init_in_filter(1, 2);
+    init_in.setZero();
+    init_in_filter << ref[0], ref[0];
+    plant.setInitialState(init_in);
+    prefilter.setInitialState(init_in_filter);
+
+    double time = 0, dt = sampling;
+    double ratio = 0;
+    double overshoot = 0;
+    double time_overshoot = 0;
     plant.setInitialTime(time);
+    prefilter.setInitialTime(time);
     controller.restart();
-    while (time < timeout)
+    while (time < time_settling)
     {
+        prefilter.update(
+            ref,
+            linear_system::LinearSystem::getTimeFromSeconds(time)
+        );
         controller.update(
             linear_system::LinearSystem::getTimeFromSeconds(time),
-            ref,
+            prefilter.getOutput(),
             plant.getOutput(),
             plant.getOutput()
         );
         plant.update(controller.getOutput(), linear_system::LinearSystem::getTimeFromSeconds(time));
-        if (time > settling_time)
+        ratio = std::abs( plant.getOutput()[0]/ref[0] - 1 );
+        if (plant.getOutput()[0] > ref[0] && ratio > overshoot)
         {
-            if ( std::abs( plant.getOutput()[0]/ref[0] - 1 ) >= ratio_at_eighty )
-            {
-                std::stringstream error;
-                error << "PID did not meet the required performance at " << time
-                      << ". Timeout is " << timeout << "." << std::endl
-                      << "(ref , out): (" << ref[0] << " , " << plant.getOutput()[0]
-                      << ")";
-                BOOST_ERROR(error.str());
-                return;
-            }
+            overshoot = ratio;
+            time_overshoot = time;
         }
         time += dt;
     }
-    if ( std::abs( plant.getOutput()[0]/ref[0] - 1 ) >= ratio_final )
+    if (overshoot > max_overshoot)
+    {
+        std::stringstream error;
+        error << "PID exceeded the maximum overshoot at t = " << time_overshoot/time_settling
+              << " ts : (max_overshoot, overshoot) = ("
+              << max_overshoot << " , " << overshoot << ")";
+        BOOST_ERROR(error.str());
+    }
+    if (ratio >= tol_settling_error)
     {
         std::stringstream error;
         error << "PID did not meet the required final performance: "
               << "(ref , out) = (" << 1 << " , " << plant.getOutput()[0]/ref[0]
               << ")";
         BOOST_ERROR(error.str());
-        return;
     }
 }
 
@@ -189,12 +210,19 @@ BOOST_AUTO_TEST_CASE(test_step_response)
     std::cout << "[TEST] step response" << std::endl;
     //
     PID pid(1);
-    double ts_array[] = {0.1, 1, 10, 100, 1000, 20000};
-    for (double ts : ts_array)
+    double ts_array[] = {0.1, 1, 10, 100, 1000};
+    double overshoot_array[] = {0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5};
+    double tol_ratio_overshoot = 1.1;
+    double tol_settling_error = 0.025;
+    for (double over : overshoot_array)
     {
-        double damp = 0.7, cutoff = 1/ts * 4, ratio = 10, sampling = ts / 1000;
-        pid.configure(SettingsPID::create(damp, cutoff, ratio), sampling);
-        //
-        testStepResponse(pid, ts, 0.85*ts, 0.05, 0.01);
+        for (double ts : ts_array)
+        {
+            auto settings = SettingsPID::createT(over, ts);
+            double sampling = settings.getSuggestedSampling();
+            pid.configure(settings, sampling);
+            //
+            testStepResponse(pid, settings, sampling, settings.getSettlingTime(), tol_ratio_overshoot * settings.getOvershoot(), tol_settling_error);
+        }
     }
 }
