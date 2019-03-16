@@ -1,13 +1,33 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 project(controller)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(LIBNAME "controller")
 
+if(CMAKE_BUILD_TYPE MATCHES DEBUG OR CMAKE_BUILD_TYPE MATCHES Debug)
+    # debug mode stuff here
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Og")
+else()
+    # release mode stuff here
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+endif()
+
+macro(use_cxx11)
+  if (CMAKE_VERSION VERSION_LESS "3.1")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
+    endif ()
+  else ()
+    set (CMAKE_CXX_STANDARD 11)
+  endif ()
+endmacro(use_cxx11)
+
+use_cxx11()
+
 find_package(Boost COMPONENTS unit_test_framework)
 find_package(linear_system REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(pybind11)
+find_package(pybind11 QUIET)
 
 include_directories("include" ${EIGEN3_INCLUDE_DIRS})
 set(LIBRARY_SOURCES
