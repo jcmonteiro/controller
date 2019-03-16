@@ -90,7 +90,7 @@ public:
 
     /**
      * @brief Generate a SettingsPID instance with gains designed to meet the provided time specifications.
-     * @param overshoot The maximum allowed overshoot, typically [0, 0.2]. Accepted values are in [0, 1].
+     * @param overshoot The maximum allowed overshoot, typically [0, 0.2]. Accepted values are in [0, 0.5].
      * @param settling_time The desired settling time, for which the step-response error < 2%.
      * @return An instance of SettingsPID with kp, ki, and kd designed to meet the specifications.
      * @throws std::logic_error If parameters are not in a valid range.

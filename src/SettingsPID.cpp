@@ -106,9 +106,9 @@ double SettingsPID::getSuggestedSampling()
 SettingsPID SettingsPID::createFromSpecT(double overshoot, double settling_time)
 {
     if (overshoot < 0)
-        throw std::logic_error("[ERROR] (SettingsPID::createT) overshoot must lie in [0,1]");
-    else if (overshoot > 1)
-        throw std::logic_error("[ERROR] (SettingsPID::createT) overshoot must lie in [0,1]");
+        throw std::logic_error("[ERROR] (SettingsPID::createT) overshoot must lie in [0, 0.5]");
+    else if (overshoot > 0.5)
+        throw std::logic_error("[ERROR] (SettingsPID::createT) overshoot must lie in [0, 0.5]");
     if (settling_time <= 0)
         throw std::logic_error("[ERROR] (SettingsPID::createT) settling time must be positive");
     double damp, cutoff;
