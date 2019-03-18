@@ -1,134 +1,78 @@
 #pragma once
 
-#include <linear_system/LinearSystem.hpp>
+
+#include "FilteredController.hpp"
+#include "SettingsPID.hpp"
+
 
 namespace controller
 {
 
-class PID
+
+class PID : public FilteredController
 {
-public:
-    //! Structure to hold the PID parameters for 'PARALLEL' type PID.
-    struct ParallelSettings
-    {
-        //! Sampling time in seconds
-        double Ts;
-
-        //! Proportional gain
-        double Kp;
-
-        //! Integral gain
-        double Ki;
-
-        //! Derivative gain
-        double Kd;
-
-        //! Setpoint weighing term
-        /** Setpoint weighing term, generally between 0 and 1
-         * - B = 0 reference is introduced only through integral term
-         * - B = 1 disables setpoint weighting
-         */
-        double B;
-
-        //! Anti-integrator-windup
-        /** Anti-integrator-windup time constant
-         * - < 0 disable
-         * - = 0 and Td = 0  disable
-         * - = 0 and Td > 0  Tt = sqrt(Ti * Td)
-         * */
-        double Tt;
-
-        //! Minimum output value
-        double YMin;
-        //! Maximum output value
-        double YMax;
-
-        //! Constructor
-        ParallelSettings():Ts(0),Kp(0),Ki(0),Kd(0),B(1),Tt(-1),YMin(0),YMax(0){}
-
-        bool operator==(const ParallelSettings &other) const{
-            return
-                Ts == other.Ts &&
-                Kp == other.Kp &&
-                Ki == other.Ki &&
-                Kd == other.Kd &&
-                B == other.B &&
-                Tt == other.Tt &&
-                YMin == other.YMin &&
-                YMax == other.YMax;
-        }
-
-        bool operator!=(const ParallelSettings &other) const{
-            return !(*this == other);
-        }
-
-        void setIdealCoefficients(
-            double _K = 0,
-            double _Ti = 0,
-            double _Td = 0);
-    };
-
-    struct Parameters
-    {
-        linear_system::IntegrationMethod integration_method;
-        std::vector<ParallelSettings> pid_settings;
-        bool wrap_2pi;
-        bool saturate;
-
-        Parameters() : integration_method(linear_system::IntegrationMethod::TUSTIN), wrap_2pi(false), saturate(false) {}
-        void setSettings(const std::vector<ParallelSettings> &settings) {pid_settings = settings;}
-    };
-
-    struct Inputs
-    {
-        linear_system::LinearSystem::Time time;
-        Eigen::VectorXd reference, signal;
-        Eigen::VectorXd dotreference, dotsignal;
-        Eigen::VectorXd pid_sat;
-
-        void checkDimensions(unsigned int dim) const;
-        void resize(unsigned int dim);
-
-        static Inputs create(double ref, double sig, double dref, double dsig, double sat);
-    };
-
-    struct Outputs
-    {
-        Eigen::VectorXd p_error, d_error;
-        Eigen::VectorXd p, i, d, pid;
-
-        void resize(unsigned int dim);
-        const Eigen::VectorXd & getValue() {return pid;}
-    };
-
 private:
-    Parameters params;
-    Outputs outputs;
+    typedef typename Eigen::VectorXd Gain;
 
-    bool first_run, has_integrator;
-    unsigned int dim;
-    Eigen::VectorXd p_error_with_B, integrator_input;
-    Eigen::VectorXd B, Kp, Kd, Ki, Kt;
+    bool antiwindup, mode_velocity_filtered, has_integral;
 
-    linear_system::LinearSystem integrator;
+    Gain kp, ki, kd, gain_antiwidnup, weight_reference;
 
-    void configIntegrator();
+    Input dot_error;
+
+    Output output_default, output;
+
+    static bool nonnegative(const Gain & gain)
+    {
+        return (gain.array() >= 0).all();
+    }
+
+protected:
+    const Output & updateControl(Time time, const Input & ref, const Input & signal);
+    void configureFirstRun(Time time, const Input &ref, const Input &signal);
+
+    void mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters);
+    bool configureFilters(const std::vector<SettingsFilter> & settings);
 
 public:
-    PID() : first_run(true), has_integrator(false), dim(0) {}
-    void configParameters(const Parameters &params);
+    PID(unsigned int N_controllers);
 
-    /*!
-     * \brief restart Schedules a restart for the next update to reset the integrator
+    bool ok() const
+    {
+        return FilteredController::ok() &&
+            nonnegative(kp) &&
+            nonnegative(ki) &&
+            nonnegative(kd) &&
+            nonnegative(weight_reference) && (weight_reference.array() <= 1).all() &&
+            nonnegative(gain_antiwidnup);
+    }
+
+    const Output & getDefaultOutput() const
+    {
+        return output_default;
+    }
+
+    bool configure(const std::vector<SettingsPID> & settings, double sampling);
+    bool configure(const std::vector<SettingsPID> & settings, const SettingsFilter &settings_velocity_filter);
+
+    /**
+     * @brief Calls #configure(const std::vector<SettingsPID> &, double) and configure every PID with \p settings.
+     * @param settings Settings used for every PID channel.
+     * @param sampling Controller sampling period.
+     * @return
      */
-    inline void restart() {first_run = true;}
+    bool configure(const SettingsPID &settings, double sampling);
 
-    /*!
-     * \brief cancelRestart Cancels a scheduled restart
+    /**
+     * @brief Calls #configure(const std::vector<SettingsPID> &, const SettingsFilter &) and configure every PID with \p settings.
+     * @param settings Settings used for every PID channel.
+     * @param settings_velocity_filter Settings for the derivative filter.
+     * @return
      */
-    inline void cancelRestart() {first_run = false;}
+    bool configure(const SettingsPID &settings, const SettingsFilter &settings_velocity_filter);
 
-    const Outputs & update(const Inputs & inputs, bool check_dim = true);
+    void updateVelocities(const Input & dot_error);
 };
+
 
 }

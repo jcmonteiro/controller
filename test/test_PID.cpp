@@ -2,7 +2,7 @@
 
 #include <boost/test/unit_test.hpp>
 #include <iostream>
-#include "PIDController.hpp"
+#include "PID.hpp"
 #include <fstream>
 
 using namespace controller;

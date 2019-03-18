@@ -1,149 +1,156 @@
-#include <sstream>
 #include "PID.hpp"
-#include <linear_system/HelperFunctions.hpp>
+#include <iostream>
 
 
 using namespace controller;
 
 
-void PID::Inputs::checkDimensions(unsigned int dim) const
+PID::PID(unsigned int N_controllers) :
+    FilteredController(N_controllers, 2),
+    antiwindup(true), mode_velocity_filtered(true),
+    has_integral(true)
 {
-    if (dim != reference.size() || dim != signal.size() || dim != dotreference.size() || dim != dotsignal.size() || dim != pid_sat.size())
+    kp.setZero(_N);
+    ki.setZero(_N);
+    kd.setZero(_N);
+    weight_reference.setZero(_N);
+    gain_antiwidnup.setZero(_N);
+    output_default.setZero(_N);
+}
+
+const Output & PID::updateControl(Time time, const Input &ref, const Input &signal)
+{
+    FilteredController::updateControl(time, ref, signal);
+    output = kp.cwiseProduct(weight_reference.cwiseProduct(ref) - signal)
+               + kd.cwiseProduct( mode_velocity_filtered ? getFilters()[0].getOutput() : this->dot_error )
+               + getFilters()[1].getOutput();
+    return output;
+}
+
+void PID::configureFirstRun(Time time, const Input &ref, const Input &signal)
+{
+    FilteredController::configureFirstRun(time, ref, signal);
+}
+
+void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters)
+{
+    Input error = ref - signal;
+    input_filters[0] = error;
+    input_filters[1] = ki.cwiseProduct(error) + gain_antiwidnup.cwiseProduct(getOutput() - getOutputPreSat());
+}
+
+bool PID::configureFilters(const std::vector<SettingsFilter> & settings)
+{
+    if (settings.size() != 2)
     {
-        std::stringstream error;
-        error << "(PID) wrong dimension on inputs" << std::endl
-            << " expected dim: " << dim << std::endl
-            << " reference: " << reference.size() << std::endl
-            << " signal: " << signal.size() << std::endl
-            << " dotreference: " << dotreference.size() << std::endl
-            << " dotsignal: " << dotsignal.size() << std::endl
-            << " pid_sat: " << pid_sat.size();
-        throw std::runtime_error(error.str());
+        std::cerr << "[WARN] (PID::configureFilters) PID must be configured for two filters, not "
+                  << settings.size() << ". All filters will be removed." << std::endl;
+        FilteredController::configureFilters({});
+        return false;
     }
+    return FilteredController::configureFilters(settings);
 }
 
-void PID::Inputs::resize(unsigned int dim)
+bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
 {
-    reference.resize(dim);
-    signal.resize(dim);
-    dotreference.resize(dim);
-    dotsignal.resize(dim);
-    pid_sat.resize(dim);
-}
-
-PID::Inputs PID::Inputs::create(double ref, double sig, double dref, double dsig, double sat)
-{
-    Inputs ret;
-    ret.reference.setConstant(1, ref);
-    ret.signal.setConstant(1, sig);
-    ret.dotreference.setConstant(1, dref);
-    ret.dotsignal.setConstant(1, dsig);
-    ret.pid_sat.setConstant(1, sat);
-    return ret;
-}
-
-void PID::Outputs::resize(unsigned int dim)
-{
-    p_error.setZero(dim);
-    d_error.setZero(dim);
-    p.setZero(dim);
-    i.setZero(dim);
-    d.setZero(dim);
-    pid.setZero(dim);
-}
-
-
-void PID::configIntegrator()
-{
-    // assume all checks have been done on the parameters by now
-    integrator.setIntegrationMethod(params.integration_method);
-    integrator.setSampling(params.pid_settings[0].Ts);
-    integrator.useNFilters(dim);
-    Eigen::VectorXd tfNum(2), tfDen(2);
-    tfNum << 0,1;
-    tfDen << 1,0;
-    integrator.setFilter(tfNum, tfDen);
-    integrator.setInitialOutputDerivatives(Eigen::MatrixXd::Zero(dim,1));
-    integrator.discretizeSystem();
-}
-
-void PID::configParameters(const Parameters &params)
-{
-    dim = params.pid_settings.size();
-    if (dim <= 0)
-        throw std::logic_error("pid settings size must be bigger than 0");
-
-    this->params = params;
-    outputs.resize(dim);
-    p_error_with_B.resize(dim);
-    integrator_input.resize(dim);
-    B.resize(dim);
-    Kp.resize(dim);
-    Ki.resize(dim);
-    Kd.resize(dim);
-    Kt.resize(dim);
-
-    for (unsigned int i = 0; i < dim; i++)
+    double max_cutoff = 0;
+    for (const auto & s : settings)
     {
-        B[i] = params.pid_settings[i].B;
-        Kp[i] = params.pid_settings[i].Kp;
-        Ki[i] = params.pid_settings[i].Ki;
-        Kd[i] = params.pid_settings[i].Kd;
+        if (s.kd <= 0)
+            continue;
+        double cutoff = s.getCutoffFrequency();
+        if (cutoff > max_cutoff)
+            max_cutoff = cutoff;
+    }
+    SettingsFilter velocity;
+    if (max_cutoff == 0)
+    {
+        // if we are here, all kd <= 0 and there is no derivative action
+        velocity.num.resize(1);
+        velocity.den.resize(1);
+        velocity.num << 0;
+        velocity.den << 1;
+        velocity.init_output_and_derivs.setZero(_N, 0);
+    }
+    else
+    {
+        // place the cutoff frequency two decades ahead
+        max_cutoff *= 20;
+        double damping = 0.7;
+        velocity = SettingsFilter::createSecondOrder(damping, max_cutoff, _N);
+    }
+    velocity.sampling_period = sampling;
+    return configure(settings, velocity);
+}
 
-        if (params.pid_settings[i].Tt > 0)
-            Kt[i] = 1/params.pid_settings[i].Tt;
-        else if ((params.pid_settings[i].Tt == 0) && (params.pid_settings[i].Kd > 0))
-            Kt[i] = sqrt(params.pid_settings[i].Ki/params.pid_settings[i].Kd);
+bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilter &settings_velocity_filter)
+{
+    if (settings.size() != _N)
+    {
+        if (settings.size() > _N)
+            std::cerr << "[Warn] (PID::configure) failed to configure, there are too many settings" << std::endl;
         else
-            Kt[i] = 0;
-
-        if (params.pid_settings[i].Ts != params.pid_settings[0].Ts)
-            throw std::logic_error("All pid settings must have the same Ts");
+            std::cerr << "[Warn] (PID::configure) failed to configure, there are not enough settings" << std::endl;
+        return false;
     }
-    has_integrator = (Ki.array() != 0).any();
-    if (has_integrator)
-        configIntegrator();
+
+    unsigned int k = 0;
+    has_integral = false;
+    for (auto setting : settings)
+    {
+        kp[k] = setting.kp;
+        ki[k] = setting.ki;
+        kd[k] = setting.kd;
+        weight_reference[k] = setting.weight_reference;
+        gain_antiwidnup[k]  = setting.gain_antiwidnup;
+        ++k;
+
+        has_integral |= setting.ki != 0;
+    }
+
+    SettingsFilter integrator;
+    if (has_integral)
+    {
+        integrator.num.resize(2);
+        integrator.den.resize(2);
+        integrator.num << 0, 1;
+        integrator.den << 1, 0;
+        integrator.init_output_and_derivs.setZero(_N, 1);
+    }
+    else
+    {
+        integrator.num.resize(1);
+        integrator.den.resize(1);
+        integrator.num << 0;
+        integrator.den << 1;
+        integrator.init_output_and_derivs.setZero(_N, 0);
+    }
+    integrator.sampling_period = settings_velocity_filter.sampling_period;
+    return configureFilters( {settings_velocity_filter, integrator} );
 }
 
-const PID::Outputs & PID::update(const Inputs & inputs, bool check_dim)
+bool PID::configure(const SettingsPID &settings, double sampling)
 {
-    if (check_dim)
-        inputs.checkDimensions(dim);
+    std::vector<SettingsPID> settings_vector( size() );
+    for (auto &s : settings_vector)
+        s = settings;
+    return configure(settings_vector, sampling);
+}
 
-    // calculate errors
-    outputs.p_error = inputs.reference - inputs.signal;
-    p_error_with_B = B.cwiseProduct(inputs.reference) - inputs.signal;
-    outputs.d_error = inputs.dotreference - inputs.dotsignal;
-    if (params.wrap_2pi)
+bool PID::configure(const SettingsPID &settings, const SettingsFilter &settings_velocity_filter)
+{
+    std::vector<SettingsPID> settings_vector( size() );
+    for (auto &s : settings_vector)
+        s = settings;
+    return configure(settings_vector, settings_velocity_filter);
+}
+
+void PID::updateVelocities(const Input &dot_error)
+{
+    if (mode_velocity_filtered)
     {
-        linear_system::wrap2pi(outputs.p_error);
-        linear_system::wrap2pi(p_error_with_B);
+        std::cerr << "[WARN] (PID::updateVelocities) Error velocity is computed inside the PID, so I refuse to directly updated it!" << std::endl;
+        return;
     }
-
-    // saturation
-    if (first_run && params.saturate)
-        outputs.pid = inputs.pid_sat;
-
-    // integrator
-    integrator_input = Ki.cwiseProduct(outputs.p_error);
-    if (params.saturate && has_integrator)
-        integrator_input += Kt.cwiseProduct(inputs.pid_sat - outputs.pid);
-    if (first_run)
-    {
-        if (has_integrator)
-        {
-            integrator.setInitialState(integrator_input);
-            integrator.setInitialTime(inputs.time);
-        }
-        first_run = false;
-    }
-
-    // calculate pid
-    outputs.p = Kp.cwiseProduct(p_error_with_B);
-    if (has_integrator)
-        outputs.i = integrator.update(integrator_input, inputs.time);
-    outputs.d = Kd.cwiseProduct(outputs.d_error);
-    outputs.pid = outputs.p + outputs.i + outputs.d;
-
-    return outputs;
+    this->dot_error = dot_error;
 }

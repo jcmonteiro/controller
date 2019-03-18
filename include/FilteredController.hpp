@@ -61,7 +61,7 @@ protected:
      */
     virtual void mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters) = 0;
 
-    bool configureFilters(const std::vector<SettingsFilter> & settings);
+    virtual bool configureFilters(const std::vector<SettingsFilter> & settings);
 
     inline const std::vector<linear_system::LinearSystem> & getFilters()
     {

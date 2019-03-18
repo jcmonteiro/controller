@@ -33,7 +33,7 @@ include_directories("include" ${EIGEN3_INCLUDE_DIRS})
 set(LIBRARY_SOURCES
     src/Controller.cpp
     src/FilteredController.cpp
-    src/PIDController.cpp
+    src/PID.cpp
     src/SettingsPID.cpp
 )
 add_library(${LIBNAME} SHARED "${LIBRARY_SOURCES}")
@@ -70,8 +70,10 @@ endif ()
 
 # Install
 set(LIBRARY_HEADERS
+    include/Controller.hpp
+    include/FilteredController.hpp
     include/PID.hpp
-    include/PPI.hpp
+    include/SettingsPID.hpp
 )
 set_target_properties(${LIBNAME} PROPERTIES PUBLIC_HEADER "${LIBRARY_HEADERS}")
 install(
