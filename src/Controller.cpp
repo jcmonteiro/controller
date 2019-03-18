@@ -32,6 +32,8 @@ void Controller::configureFirstRun(Time time, const Input &, const Input &)
 {
     time_last = time;
     first_run = false;
+    output = getDefaultOutput();
+    output_presat = output;
 }
 
 void Controller::update(Time time, const Input &ref, const Input &signal)

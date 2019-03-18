@@ -36,7 +36,7 @@ void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<Inp
 {
     Input error = ref - signal;
     input_filters[0] = error;
-    input_filters[1] = ki.cwiseProduct(error);
+    input_filters[1] = ki.cwiseProduct(error) + gain_antiwidnup.cwiseProduct(getOutput() - getOutputPreSat());
 }
 
 bool PID::configureFilters(const std::vector<SettingsFilter> & settings)
