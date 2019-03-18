@@ -18,6 +18,8 @@ struct SettingsFilter
     linear_system::IntegrationMethod method;
 
     SettingsFilter();
+
+    static SettingsFilter createSecondOrder(double damp, double cutoff, unsigned int N = 1);
 };
 
 

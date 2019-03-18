@@ -58,7 +58,7 @@ bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
     {
         if (s.kd <= 0)
             continue;
-        double cutoff = s.kp / s.kd;
+        double cutoff = s.getCutoffFrequency();
         if (cutoff > max_cutoff)
             max_cutoff = cutoff;
     }
@@ -76,13 +76,8 @@ bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
     {
         // place the cutoff frequency two decades ahead
         max_cutoff *= 20;
-        double damping = 0.9;
-        double wn = max_cutoff / damping;
-        velocity.num.resize(3);
-        velocity.den.resize(3);
-        velocity.num << 0, wn*wn, 0;
-        velocity.den << 1, 2*damping*wn, wn*wn;
-        velocity.init_output_and_derivs.setZero(_N, 2);
+        double damping = 0.7;
+        velocity = SettingsFilter::createSecondOrder(damping, max_cutoff, _N);
     }
     velocity.sampling_period = sampling;
     return configure(settings, velocity);

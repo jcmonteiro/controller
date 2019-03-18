@@ -12,6 +12,18 @@ SettingsFilter::SettingsFilter() :
 }
 
 
+SettingsFilter SettingsFilter::createSecondOrder(double damp, double cutoff, unsigned int N)
+{
+    SettingsFilter ret;
+    double wn = cutoff / damp;
+    ret.num.resize(3);
+    ret.den.resize(3);
+    ret.num << 0, wn*wn, 0;
+    ret.den << 1, 2*damp*wn, wn*wn;
+    ret.init_output_and_derivs.setZero(N, 2);
+    return ret;
+}
+
 void FilteredController::updateFilters(Time time, const std::vector<Input> & inputs)
 {
     if (inputs.size() != filters.size())
