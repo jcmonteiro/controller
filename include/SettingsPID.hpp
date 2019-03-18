@@ -44,7 +44,7 @@ public:
      * @brief Returns the expected settling time given the PID settings.
      * @return The expected settling time.
      */
-    double getSettlingTime();
+    double getSettlingTime() const;
 
     /**
      * @brief Returns the expected overshoot given the PID settings.
@@ -53,40 +53,40 @@ public:
      *
      * @return The expected overshoot.
      */
-    double getOvershoot();
+    double getOvershoot() const;
 
     /**
      * @brief Returns the expected damping given the PID settings.
      *
      * @return The expected damping.
      */
-    double getDamping();
+    double getDamping() const;
 
     /**
      * @brief Returns the far pole position (only valid for kp,ki,kd > 0).
      * @return The far pole position.
      */
-    double getFarPole();
+    double getFarPole() const;
 
     /**
      * @brief Returns the expected natural frequency (in rad) given the PID settings.
      *
      * @return The expected natural frequency.
      */
-    double getNaturalFrequency();
+    double getNaturalFrequency() const;
 
     /**
      * @brief Returns the expected cutoff frequency (in rad) given the PID settings.
      * @return The expected cutoff frequency
      */
-    double getCutoffFrequency();
+    double getCutoffFrequency() const;
 
     /**
      * @brief Returns the suggested sampling, computed as min(0.25 * 2*pi/w_max, ts/100),
      * where w_max is the fastest pole produced by this PID settings and ts = #getSamplingTime().
      * @return The suggested sampling.
      */
-    double getSuggestedSampling();
+    double getSuggestedSampling() const;
 
     /**
      * @brief Generate a SettingsPID instance with gains designed to meet the provided time specifications.

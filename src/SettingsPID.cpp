@@ -14,7 +14,7 @@ SettingsPID::SettingsPID() :
 {
 }
 
-double SettingsPID::getSettlingTime()
+double SettingsPID::getSettlingTime() const
 {
     double damp = getDamping();
     // underdamped
@@ -34,7 +34,7 @@ double SettingsPID::getSettlingTime()
         return 38.8 / getNaturalFrequency();
 }
 
-double SettingsPID::getOvershoot()
+double SettingsPID::getOvershoot() const
 {
     double damp = getDamping();
     // underdamped
@@ -44,7 +44,7 @@ double SettingsPID::getOvershoot()
         return 0;
 }
 
-double SettingsPID::getDamping()
+double SettingsPID::getDamping() const
 {
     // PD
     if (ki == 0)
@@ -59,7 +59,7 @@ double SettingsPID::getDamping()
     }
 }
 
-double SettingsPID::getFarPole()
+double SettingsPID::getFarPole() const
 {
     if (far_pole != 0)
         return far_pole;
@@ -74,7 +74,7 @@ double SettingsPID::getFarPole()
         return 0;
 }
 
-double SettingsPID::getNaturalFrequency()
+double SettingsPID::getNaturalFrequency() const
 {
     // PD
     if (ki == 0)
@@ -87,12 +87,12 @@ double SettingsPID::getNaturalFrequency()
         return std::sqrt(ki / getFarPole());
 }
 
-double SettingsPID::getCutoffFrequency()
+double SettingsPID::getCutoffFrequency() const
 {
     return getDamping() * getNaturalFrequency();
 }
 
-double SettingsPID::getSuggestedSampling()
+double SettingsPID::getSuggestedSampling() const
 {
     double far_pole = getFarPole();
     double sampling;
