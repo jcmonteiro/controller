@@ -48,7 +48,7 @@ protected:
      * @throws std::logic_error If the child class implementation of #mapFilterInputs
      * changes the size of its \p input_filters parameter.
      */
-    virtual const Output & updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output);
+    virtual const Output & updateControl(Time time, const Input &ref, const Input &signal);
 
     virtual void configureFirstRun(Time time, const Input &ref, const Input &signal);
 

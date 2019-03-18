@@ -28,7 +28,7 @@ private:
     }
 
 protected:
-    const Output & updateControl(Time time, const Input & ref, const Input & signal, const Output & last_output);
+    const Output & updateControl(Time time, const Input & ref, const Input & signal);
     void configureFirstRun(Time time, const Input &ref, const Input &signal);
 
     void mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters);

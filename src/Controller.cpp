@@ -7,7 +7,7 @@ using namespace controller;
 
 
 Controller::Controller(unsigned int N_controllers) :
-    _N(N_controllers)
+    cb_postprocessing(0), cb_saturation(0), _N(N_controllers)
 {
     restart();
 }
@@ -18,15 +18,25 @@ void Controller::restart()
     first_run = true;
 }
 
+void Controller::setCallbackPostProcessing(Controller::CallbackPostProcessing callback)
+{
+    cb_postprocessing = callback;
+}
+
+void Controller::setCallbackSaturation(Controller::CallbackSaturation callback)
+{
+    cb_saturation = callback;
+}
+
 void Controller::configureFirstRun(Time time, const Input &, const Input &)
 {
     time_last = time;
     first_run = false;
 }
 
-void Controller::update(Time time, const Input &ref, const Input &signal, const Output &last_output)
+void Controller::update(Time time, const Input &ref, const Input &signal)
 {
-    if (ref.size() != _N || signal.size() != _N || last_output.size() != _N)
+    if (ref.size() != _N || signal.size() != _N)
     {
         std::stringstream error;
         error << "[ERROR] (Controller::update) the size of at least one argument != "
@@ -46,6 +56,11 @@ void Controller::update(Time time, const Input &ref, const Input &signal, const 
             return;
         }
     }
-    output = updateControl(time, ref, signal, last_output);
+    output = updateControl(time, ref, signal);
+    if (cb_postprocessing)
+        cb_postprocessing(output);
+    output_presat = output;
+    if (cb_saturation)
+        cb_saturation(output);
     time_last = time;
 }

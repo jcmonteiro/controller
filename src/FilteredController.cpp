@@ -50,11 +50,11 @@ void FilteredController::_mapFilterInputs(const Input &ref, const Input &signal)
         throw std::logic_error("[ERROR] (FilteredController::updateControl) <child class>::mapFilterInputs changed the filters inputs size when it shouldn't have!");
 }
 
-const Output & FilteredController::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
+const Output & FilteredController::updateControl(Time time, const Input &ref, const Input &signal)
 {
     _mapFilterInputs(ref, signal);
     updateFilters(time, filters_inputs);
-    return last_output;
+    return getOutput();
 }
 
 void FilteredController::configureFirstRun(Time time, const Input &ref, const Input &signal)

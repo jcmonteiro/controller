@@ -18,9 +18,9 @@ PID::PID(unsigned int N_controllers) :
     output_default.setZero(_N);
 }
 
-const Output & PID::updateControl(Time time, const Input &ref, const Input &signal, const Output &last_output)
+const Output & PID::updateControl(Time time, const Input &ref, const Input &signal)
 {
-    FilteredController::updateControl(time, ref, signal, last_output);
+    FilteredController::updateControl(time, ref, signal);
     output = kp.cwiseProduct(weight_reference.cwiseProduct(ref) - signal)
                + kd.cwiseProduct( mode_velocity_filtered ? getFilters()[0].getOutput() : this->dot_error )
                + getFilters()[1].getOutput();

@@ -26,6 +26,16 @@ void printProgress(int width, float progress)
         std::cout << std::endl;
 }
 
+bool equal_eigen(const Eigen::MatrixXd &m1, const Eigen::MatrixXd &m2)
+{
+    return (m1.array() == m2.array()).all();
+}
+
+bool different_eigen(const Eigen::MatrixXd &m1, const Eigen::MatrixXd &m2)
+{
+    return (m1.array() != m2.array()).any();
+}
+
 void testReset(Controller &controller)
 {
     // run twice and see if we get the same results
@@ -34,7 +44,6 @@ void testReset(Controller &controller)
     Input ref(N), sig(N);
     ref << 1, 0.8;
     ref << 0.5, 0.6;
-    Output out = controller.getDefaultOutput();
     double time = 0, dt = 1;
     unsigned int n_turns = 10;
     std::vector<Output> history(n_turns);
@@ -44,24 +53,20 @@ void testReset(Controller &controller)
         controller.update(
             linear_system::LinearSystem::getTimeFromSeconds( time += dt ),
             ref,
-            sig,
-            out
+            sig
         );
         history[k] = controller.getOutput();
     }
     controller.restart();
-    out = controller.getDefaultOutput();
     time = 0;
     for (unsigned int k = 0; k < n_turns; ++k)
     {
         controller.update(
             linear_system::LinearSystem::getTimeFromSeconds( time += dt ),
             ref,
-            sig,
-            out
+            sig
         );
-        out = controller.getOutput();
-        if ( ((out - history[k]).array() != 0).any() )
+        if ( ((controller.getOutput() - history[k]).array() != 0).any() )
             BOOST_ERROR("found different output values when running the same controller twice");
     }
 }
@@ -72,7 +77,6 @@ void testInputChannels(Controller &controller)
     Input ref(N), sig(N);
     ref.setConstant(23.43);
     sig.setConstant(11.33);
-    Output out = controller.getDefaultOutput();
     double time = 0, dt = 1;
     unsigned int n_turns = 10;
     controller.restart();
@@ -81,10 +85,9 @@ void testInputChannels(Controller &controller)
         controller.update(
             linear_system::LinearSystem::getTimeFromSeconds( time += dt ),
             ref,
-            sig,
-            out
+            sig
         );
-        out = controller.getOutput();
+        Output out = controller.getOutput();
         if ( ((out.array() - out[0]) != 0).any() )
             BOOST_ERROR("found different output values while sending the same inputs to all controller channels");
     }
@@ -342,4 +345,35 @@ BOOST_AUTO_TEST_CASE(test_frequency_response)
             testFrequencyResponse(pid, settings, sampling, damp, cutoff, settings.getFarPole());
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(test_saturation_cb)
+{
+    std::cout << "[TEST] saturation callback" << std::endl;
+    //
+    PID pid(1);
+    auto settings = SettingsPID::createFromSpecT(0.05, 1);
+    double sampling = settings.getSuggestedSampling();
+    pid.configure(settings, sampling);
+    //
+    Input in(1), ref(1);
+    in[0] = 0;
+    ref[0] = 0;
+    pid.update(0, ref, in);
+    ref[0] = 100000000;
+    //
+    pid.update(linear_system::LinearSystem::getTimeFromSeconds(5*sampling), ref, in);
+    BOOST_ASSERT( equal_eigen(pid.getOutput(), pid.getOutputPreSat()) );
+    //
+    int k = 0;
+    pid.setCallbackSaturation(
+        [&k] (Output &out) -> void {
+            out[0] = 123;
+            k = 321;
+        }
+    );
+    pid.update(linear_system::LinearSystem::getTimeFromSeconds(10*sampling), ref, in);
+    BOOST_ASSERT(k == 321);
+    BOOST_ASSERT( different_eigen(pid.getOutput(), pid.getOutputPreSat()) );
+    BOOST_ASSERT( (pid.getOutput().array() == 123).all() );
 }
