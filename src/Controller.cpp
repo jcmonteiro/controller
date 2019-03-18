@@ -39,8 +39,10 @@ void Controller::update(Time time, const Input &ref, const Input &signal, const 
             configureFirstRun(time, ref, signal);
         else
         {
-            std::cerr << "[WARN] (Controller::update) update called for a past time; output set to its default value" << std::endl;
-            output = getDefaultOutput();
+            if (time < time_last)
+                std::cerr << "[WARN] (Controller::update) update called for a past time; output will not change" << std::endl;
+            else
+                std::cerr << "[WARN] (Controller::update) update called but no time has passed since the last call; output will not change" << std::endl;
             return;
         }
     }
