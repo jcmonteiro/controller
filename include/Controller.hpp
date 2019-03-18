@@ -86,6 +86,8 @@ public:
      */
     inline void update(Time time, const Input & ref, const Input & signal)
     {
+        if (first_run)
+            output = getDefaultOutput();
         update(time, ref, signal, output);
     }
 
