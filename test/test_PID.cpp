@@ -368,12 +368,46 @@ BOOST_AUTO_TEST_CASE(test_saturation_cb)
     int k = 0;
     pid.setCallbackSaturation(
         [&k] (Output &out) -> void {
-            out[0] = 123;
+            out.setConstant(123);
             k = 321;
         }
     );
     pid.update(linear_system::LinearSystem::getTimeFromSeconds(10*sampling), ref, in);
     BOOST_ASSERT(k == 321);
     BOOST_ASSERT( different_eigen(pid.getOutput(), pid.getOutputPreSat()) );
+    BOOST_ASSERT( (pid.getOutput().array() == 123).all() );
+}
+
+BOOST_AUTO_TEST_CASE(test_postprocessing_cb)
+{
+    std::cout << "[TEST] post-processing callback" << std::endl;
+    //
+    PID pid(1);
+    SettingsPID settings;
+    settings.kp = 1;
+    settings.ki = 0;
+    settings.kd = 0;
+    double sampling = 1;
+    pid.configure(settings, sampling);
+    //
+    Input in(1), ref(1);
+    in[0] = 0;
+    ref[0] = 0;
+    pid.update(0, ref, in);
+    ref[0] = 1;
+    //
+    pid.update(linear_system::LinearSystem::getTimeFromSeconds(5*sampling), ref, in);
+    BOOST_ASSERT( equal_eigen(pid.getOutput(), pid.getOutputPreSat()) );
+    //
+    int k = 0;
+    pid.setCallbackPostProcessing(
+        [&k] (Output &out) -> void {
+            out.setConstant(123);
+            k = 321;
+        }
+    );
+    pid.update(linear_system::LinearSystem::getTimeFromSeconds(10*sampling), ref, in);
+    BOOST_ASSERT(k == 321);
+    BOOST_ASSERT( equal_eigen(pid.getOutput(), pid.getOutputPreSat()) );
     BOOST_ASSERT( (pid.getOutput().array() == 123).all() );
 }
