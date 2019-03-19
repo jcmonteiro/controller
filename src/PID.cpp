@@ -22,7 +22,7 @@ const Output & PID::updateControl(Time time, const Input &ref, const Input &sign
 {
     FilteredController::updateControl(time, ref, signal);
     output = kp.cwiseProduct(weight_reference.cwiseProduct(ref) - signal)
-               + kd.cwiseProduct( mode_velocity_filtered ? getFilters()[0].getOutput() : this->dot_error )
+               + kd.cwiseProduct(getErrorDerivative())
                + getFilters()[1].getOutput();
     return output;
 }
@@ -145,7 +145,12 @@ bool PID::configure(const SettingsPID &settings, const SettingsFilter &settings_
     return configure(settings_vector, settings_velocity_filter);
 }
 
-void PID::updateVelocities(const Input &dot_error)
+const Eigen::VectorXd & PID::getErrorDerivative() const
+{
+    return (mode_velocity_filtered) ? getFilters()[0].getOutput() : dot_error;
+}
+
+void PID::setErrorDerivative(const Input &dot_error)
 {
     if (mode_velocity_filtered)
     {

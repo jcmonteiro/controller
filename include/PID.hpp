@@ -37,6 +37,10 @@ protected:
 public:
     PID(unsigned int N_controllers);
 
+    /**
+     * @brief Returns true if everything is correctly configured.
+     * @return True if configuration is ok.
+     */
     bool ok() const
     {
         return FilteredController::ok() &&
@@ -47,6 +51,10 @@ public:
             nonnegative(gain_antiwidnup);
     }
 
+    /**
+     * @brief Returns the default output for this PID instance.
+     * @return The default output.
+     */
     const Output & getDefaultOutput() const
     {
         return output_default;
@@ -59,7 +67,7 @@ public:
      * @brief Calls #configure(const std::vector<SettingsPID> &, double) and configure every PID with \p settings.
      * @param settings Settings used for every PID channel.
      * @param sampling Controller sampling period.
-     * @return
+     * @return True if configuration succeeds.
      */
     bool configure(const SettingsPID &settings, double sampling);
 
@@ -67,11 +75,51 @@ public:
      * @brief Calls #configure(const std::vector<SettingsPID> &, const SettingsFilter &) and configure every PID with \p settings.
      * @param settings Settings used for every PID channel.
      * @param settings_velocity_filter Settings for the derivative filter.
-     * @return
+     * @return True if configuration succeeds.
      */
     bool configure(const SettingsPID &settings, const SettingsFilter &settings_velocity_filter);
 
-    void updateVelocities(const Input & dot_error);
+    /**
+     * @brief Returns true if the error derivative is computed internally using some lead filter.
+     * @return True if the derivative is filtered. False if it is given by calling #setErrorDerivative.
+     * @see #setDerivativeFiltered, #setErrorDerivative
+     */
+    inline bool isDerivativeFiltered() const
+    {
+        return mode_velocity_filtered;
+    }
+
+    /**
+     * @brief Sets the derivative mode.
+     * @param is_filtered True to compute the derivative internally using some lead filter. False
+     * to acquire it through #setErrorDerivative.
+     * @see #isDerivativeFiltered, #setErrorDerivative
+     */
+    inline void setDerivativeFiltered(bool is_filtered)
+    {
+        mode_velocity_filtered = is_filtered;
+    }
+
+    /**
+     * @brief Returns the error derivative.
+     *
+     * By default, this method returns current veleocity filter output, unless #isDerivativeFiltered()
+     * == false, then it returns the last value set via #setErrorDerivative.
+     *
+     * @return The error derivative.
+     * @see #setErrorDerivative, #isDerivativeFiltered
+     */
+    const Eigen::VectorXd & getErrorDerivative() const;
+
+    /**
+     * @brief Updates the error derivative.
+     *
+     * A call to this method only takes effect if #isDerivativeFiltered() == false.
+     *
+     * @param dot_error The error derivative.
+     * @see #isDerivativeFiltered, #setDerivativeFiltered, #getErrorDerivative
+     */
+    void setErrorDerivative(const Input & dot_error);
 };
 
 

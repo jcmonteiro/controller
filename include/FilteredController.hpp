@@ -63,7 +63,7 @@ protected:
 
     virtual bool configureFilters(const std::vector<SettingsFilter> & settings);
 
-    inline const std::vector<linear_system::LinearSystem> & getFilters()
+    inline const std::vector<linear_system::LinearSystem> & getFilters() const
     {
         return filters;
     }

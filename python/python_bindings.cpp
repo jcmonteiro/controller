@@ -41,7 +41,7 @@ PYBIND11_MODULE(controller_py, m) {
         .def("setCallbackSaturation",       &PID::setCallbackSaturation)
         .def("size",                        &PID::size)
         .def("update",                      &PID::update)
-        .def("updateVelocities",            &PID::updateVelocities)
+        .def("updateVelocities",            &PID::setErrorDerivative)
     ;
 
 //    py::class_<SettingsPID>(m, "SettingsPID")

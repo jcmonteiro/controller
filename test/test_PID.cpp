@@ -411,3 +411,33 @@ BOOST_AUTO_TEST_CASE(test_postprocessing_cb)
     BOOST_ASSERT( equal_eigen(pid.getOutput(), pid.getOutputPreSat()) );
     BOOST_ASSERT( (pid.getOutput().array() == 123).all() );
 }
+
+BOOST_AUTO_TEST_CASE(test_derivative_mode)
+{
+    std::cout << "[TEST] derivative mode" << std::endl;
+    //
+    PID pid(1);
+    double sampling = 0.01;
+    pid.configure( SettingsPID::createFromSpecT(0.02, 1.0), sampling );
+    Input in(1), ref(1);
+    in << 0;
+    ref << 0;
+    for (unsigned int k = 0; k < 10; ++k)
+    {
+        in[0] = k;
+        pid.update(linear_system::LinearSystem::getTimeFromSeconds(k*sampling), in, ref);
+    }
+    auto deriv1 = pid.getErrorDerivative();
+    Eigen::VectorXd deriv2(1);
+    deriv2 = deriv1.array() + 1;
+    pid.setDerivativeFiltered(false);
+    pid.setErrorDerivative(deriv2);
+    auto deriv3 = pid.getErrorDerivative();
+    pid.setDerivativeFiltered(true);
+    auto deriv4 = pid.getErrorDerivative();
+
+    BOOST_ASSERT( equal_eigen(deriv1, deriv4) );
+    BOOST_ASSERT( equal_eigen(deriv2, deriv3) );
+    BOOST_ASSERT( different_eigen(deriv1, deriv2) );
+    BOOST_ASSERT( different_eigen(deriv3, deriv4) );
+}
