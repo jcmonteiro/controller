@@ -7,9 +7,10 @@
 
 using namespace controller;
 
-void printProgress(int width, float progress)
+void printProgress(float progress)
 {
     std::cout << "[";
+    int width = 50;
     int pos = width * progress;
     for (int i = 0; i < width; ++i)
     {
@@ -307,10 +308,13 @@ BOOST_AUTO_TEST_CASE(test_step_response)
     std::cout << "[TEST] step response" << std::endl;
     //
     PID pid(1);
-    double ts_array[] = {0.1, 1, 10, 100, 1000, 10000};
-    double overshoot_array[] = {0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5};
+    std::vector<double> ts_array        = {0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000};
+    std::vector<double> overshoot_array = {0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5};
     double tol_ratio_overshoot = 1.06;
     double tol_settling_error = 0.025;
+    float total = ts_array.size() * overshoot_array.size();
+    float current = 0;
+    printProgress(0);
     for (double over : overshoot_array)
     {
         for (double ts : ts_array)
@@ -320,6 +324,7 @@ BOOST_AUTO_TEST_CASE(test_step_response)
             pid.configure(settings, sampling);
             //
             testStepResponse(pid, settings, sampling, ts, tol_ratio_overshoot * over, tol_settling_error);
+            printProgress(++current/total);
         }
     }
 }
@@ -329,8 +334,11 @@ BOOST_AUTO_TEST_CASE(test_frequency_response)
     std::cout << "[TEST] frequency response" << std::endl;
     //
     PID pid(1);
-    double cutoff_array[] = {0.01, 0.1, 1, 10, 100, 1000};
-    double damp_array[] = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+    std::vector<double> cutoff_array = {0.01, 0.05, 0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000};
+    std::vector<double> damp_array   = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+    float total = cutoff_array.size() * damp_array.size();
+    float current = 0;
+    printProgress(0);
     for (double cutoff : cutoff_array)
     {
         for (double damp : damp_array)
@@ -343,6 +351,7 @@ BOOST_AUTO_TEST_CASE(test_frequency_response)
             pid.configure(settings, velocity);
             //
             testFrequencyResponse(pid, settings, sampling, damp, cutoff, settings.getFarPole());
+            printProgress(++current/total);
         }
     }
 }
