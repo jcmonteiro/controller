@@ -96,16 +96,14 @@ void testInputChannels(Controller &controller)
 
 linear_system::LinearSystem getDoubleIntegrator(double sampling)
 {
-    linear_system::LinearSystem plant;
     Eigen::VectorXd num(3), den(3);
     num << 0, 0, 1;
     den << 1, 0, 0;
-    plant.setFilter(num, den);
-    plant.setSampling(sampling);
-    Eigen::MatrixXd init_out(1, 2);
-    init_out << 0, 0;
-    plant.setInitialOutputDerivatives(init_out);
-    plant.discretizeSystem();
+    linear_system::LinearSystem plant(num, den, sampling);
+    plant.setInitialConditions(
+        Eigen::MatrixXd::Zero(1, 2),
+        Eigen::MatrixXd::Zero(1, 2)
+    );
     return plant;
 }
 
@@ -116,22 +114,16 @@ void testStepResponse(Controller &controller, const SettingsPID &settings, doubl
 
     auto plant = getDoubleIntegrator(sampling);
 
-    linear_system::LinearSystem prefilter;
     Eigen::VectorXd num_filter(3), den_filter(3);
     num_filter << 0, pow(settings.getNaturalFrequency(), 2), settings.ki;
     den_filter << settings.kd, settings.kp, settings.ki;
-    prefilter.setFilter(num_filter, den_filter);
-    prefilter.setSampling(sampling);
+    linear_system::LinearSystem prefilter(num_filter, den_filter, sampling);
+
+    Eigen::MatrixXd init_in_filter(1, 2);
+    init_in_filter << ref[0], ref[0];
     Eigen::MatrixXd init_out_filter(1, 2);
     init_out_filter << plant.getOutput()[0], 0;
-    prefilter.setInitialOutputDerivatives(init_out_filter);
-    prefilter.discretizeSystem();
-
-    Eigen::MatrixXd init_in(1, 2), init_in_filter(1, 2);
-    init_in.setZero();
-    init_in_filter << ref[0], ref[0];
-    plant.setInitialState(init_in);
-    prefilter.setInitialState(init_in_filter);
+    prefilter.setInitialConditions(init_in_filter, init_out_filter);
 
     double time = 0, dt = sampling;
     double ratio = 0;
@@ -185,33 +177,22 @@ void testFrequencyResponse(Controller &controller, const SettingsPID &settings, 
 
     auto plant = getDoubleIntegrator(sampling);
 
-    linear_system::LinearSystem prefilter;
     Eigen::VectorXd num_filter(3), den_filter(3);
     num_filter << 0, pow(settings.getNaturalFrequency(), 2), settings.ki;
     den_filter << settings.kd, settings.kp, settings.ki;
-    prefilter.setFilter(num_filter, den_filter);
-    prefilter.setSampling(sampling);
-    Eigen::MatrixXd init_out_filter(1, 2);
-    init_out_filter << 0, 0;
-    prefilter.setInitialOutputDerivatives(init_out_filter);
-    prefilter.discretizeSystem();
+    linear_system::LinearSystem prefilter(num_filter, den_filter, sampling);
 
-    linear_system::LinearSystem model_closedloop;
     Eigen::VectorXd num_model(4), den_model(4);
     num_model << 0, farpole + 2*damp*wn, wn*wn + farpole*2*damp*wn, farpole*wn*wn;
     den_model << 1, farpole + 2*damp*wn, wn*wn + farpole*2*damp*wn, farpole*wn*wn;
-    model_closedloop.setFilter(num_model, den_model);
-    model_closedloop.setSampling(sampling);
-    Eigen::MatrixXd init_out_model(1, 3);
-    init_out_model << 0, 0, 0;
-    model_closedloop.setInitialOutputDerivatives(init_out_model);
-    model_closedloop.discretizeSystem();
-    //
-    Eigen::MatrixXd init_in_model(1, 3);
-    init_in_model.setZero();
+    linear_system::LinearSystem model_closedloop(num_model, den_model, sampling);
 
-    Eigen::MatrixXd init_in(1, 2), init_in_filter(1, 2);
-    init_in.setZero();
+    Eigen::MatrixXd init_out_model(1, 3), init_out_filter(1, 2);
+    init_out_model << 0, 0, 0;
+    init_out_filter << 0, 0;
+
+    Eigen::MatrixXd init_in_model(1, 3), init_in_filter(1, 2);
+    init_in_model.setZero();
     init_in_filter.setZero();
 
     Input ref(1);
@@ -223,9 +204,18 @@ void testFrequencyResponse(Controller &controller, const SettingsPID &settings, 
         double t_final = 10 * T;
         double t_transient = t_final - 2*T;
         double time = 0;
-        plant.setInitialState(init_in);
-        prefilter.setInitialState(init_in_filter);
-        model_closedloop.setInitialState(init_in_model);
+        plant.setInitialConditions(
+            Eigen::MatrixXd::Zero(1, 2),
+            Eigen::MatrixXd::Zero(1, 2)
+        );
+        prefilter.setInitialConditions(
+            init_in_filter,
+            init_out_filter
+        );
+        model_closedloop.setInitialConditions(
+            init_in_model,
+            init_out_model
+        );
         plant.setInitialTime(time);
         prefilter.setInitialTime(time);
         model_closedloop.setInitialTime(time);
@@ -346,7 +336,7 @@ BOOST_AUTO_TEST_CASE(test_frequency_response)
             auto settings = SettingsPID::createFromSpecF(damp, cutoff, 10);
             double wn = cutoff / damp;
             double sampling = (2*M_PI/wn) / 1000;
-            auto velocity = SettingsFilter::createSecondOrder(0.7, wn * 200, 1);
+            auto velocity = SettingsFilter::createSecondOrder(0.7, wn * 200);
             velocity.sampling_period = sampling;
             pid.configure(settings, velocity);
             //

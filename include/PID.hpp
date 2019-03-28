@@ -14,7 +14,7 @@ class PID : public FilteredController
 private:
     typedef typename Eigen::VectorXd Gain;
 
-    bool antiwindup, mode_velocity_filtered, has_integral;
+    bool antiwindup, mode_velocity_filtered, has_integral, has_derivative;
 
     Gain kp, ki, kd, gain_antiwidnup, weight_reference;
 
@@ -31,7 +31,8 @@ protected:
     const Output & updateControl(Time time, const Input & ref, const Input & signal);
     void configureFirstRun(Time time, const Input &ref, const Input &signal);
 
-    void mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters);
+    void mapFilterInputs(const Input &ref, const Input &signal, std::vector<linear_system::Input> &input_filters);
+    void mapInitialOutputAndDerivatives(std::vector<Eigen::MatrixXd> &initial_out_dout);
     bool configureFilters(const std::vector<SettingsFilter> & settings);
 
 public:

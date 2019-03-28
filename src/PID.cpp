@@ -8,7 +8,7 @@ using namespace controller;
 PID::PID(unsigned int N_controllers) :
     FilteredController(N_controllers, 2),
     antiwindup(true), mode_velocity_filtered(true),
-    has_integral(true)
+    has_integral(false), has_derivative(false)
 {
     kp.setZero(_N);
     ki.setZero(_N);
@@ -21,9 +21,15 @@ PID::PID(unsigned int N_controllers) :
 const Output & PID::updateControl(Time time, const Input &ref, const Input &signal)
 {
     FilteredController::updateControl(time, ref, signal);
-    output = kp.cwiseProduct(weight_reference.cwiseProduct(ref) - signal)
-               + kd.cwiseProduct(getErrorDerivative())
-               + getFilters()[1].getOutput();
+    output = kp.cwiseProduct(weight_reference.cwiseProduct(ref) - signal);
+    if (has_derivative)
+    {
+        output += kd.cwiseProduct(getErrorDerivative());
+        if (has_integral)
+            output += getFilters()[1].getOutput();
+    }
+    else if (has_integral)
+        output += getFilters()[0].getOutput();
     return output;
 }
 
@@ -32,18 +38,39 @@ void PID::configureFirstRun(Time time, const Input &ref, const Input &signal)
     FilteredController::configureFirstRun(time, ref, signal);
 }
 
-void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<Input> &input_filters)
+void PID::mapFilterInputs(const Input &ref, const Input &signal, std::vector<linear_system::Input> &input_filters)
 {
     Input error = ref - signal;
-    input_filters[0] = error;
-    input_filters[1] = ki.cwiseProduct(error) + gain_antiwidnup.cwiseProduct(getOutput() - getOutputPreSat());
+    linear_system::Input error_integ;
+    if (has_integral)
+        error_integ = ki.cwiseProduct(error) + gain_antiwidnup.cwiseProduct(getOutput() - getOutputPreSat());
+    if (has_derivative)
+    {
+        input_filters[0] = error;
+        if (has_integral)
+            input_filters[1] = error_integ;
+    }
+    else if (has_integral)
+        input_filters[0] = error_integ;
+}
+
+void PID::mapInitialOutputAndDerivatives(std::vector<Eigen::MatrixXd> &initial_out_dout)
+{
+    if (has_derivative)
+    {
+        initial_out_dout[0] = Eigen::MatrixXd::Zero(size(), getFilters()[0].getOrder());
+        if (has_integral)
+            initial_out_dout[1] = Eigen::MatrixXd::Zero(size(), 1);
+    }
+    else if (has_integral)
+        initial_out_dout[0] = Eigen::MatrixXd::Zero(size(), 1);
 }
 
 bool PID::configureFilters(const std::vector<SettingsFilter> & settings)
 {
-    if (settings.size() != 2)
+    if (settings.size() > 2)
     {
-        std::cerr << "[WARN] (PID::configureFilters) PID must be configured for two filters, not "
+        std::cerr << "[WARN] (PID::configureFilters) PID must be configured for at most two filters, not "
                   << settings.size() << ". All filters will be removed." << std::endl;
         FilteredController::configureFilters({});
         return false;
@@ -70,14 +97,13 @@ bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
         velocity.den.resize(1);
         velocity.num << 0;
         velocity.den << 1;
-        velocity.init_output_and_derivs.setZero(_N, 0);
     }
     else
     {
         // place the cutoff frequency two decades ahead
         max_cutoff *= 20;
         double damping = 0.7;
-        velocity = SettingsFilter::createSecondOrder(damping, max_cutoff, _N);
+        velocity = SettingsFilter::createSecondOrder(damping, max_cutoff);
     }
     velocity.sampling_period = sampling;
     return configure(settings, velocity);
@@ -96,6 +122,7 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
 
     unsigned int k = 0;
     has_integral = false;
+    has_derivative = false;
     for (auto setting : settings)
     {
         kp[k] = setting.kp;
@@ -106,6 +133,7 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
         ++k;
 
         has_integral |= setting.ki != 0;
+        has_derivative |= setting.kd != 0;
     }
 
     SettingsFilter integrator;
@@ -115,7 +143,6 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
         integrator.den.resize(2);
         integrator.num << 0, 1;
         integrator.den << 1, 0;
-        integrator.init_output_and_derivs.setZero(_N, 1);
     }
     else
     {
@@ -123,10 +150,18 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
         integrator.den.resize(1);
         integrator.num << 0;
         integrator.den << 1;
-        integrator.init_output_and_derivs.setZero(_N, 0);
     }
     integrator.sampling_period = settings_velocity_filter.sampling_period;
-    return configureFilters( {settings_velocity_filter, integrator} );
+
+    if (has_derivative)
+    {
+        if (has_integral)
+            return configureFilters( {settings_velocity_filter, integrator} );
+        return configureFilters( {settings_velocity_filter} );
+    }
+    else if (has_integral)
+        return configureFilters( {integrator} );
+    return configureFilters({});
 }
 
 bool PID::configure(const SettingsPID &settings, double sampling)
