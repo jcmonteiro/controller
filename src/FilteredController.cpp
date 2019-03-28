@@ -14,7 +14,13 @@ SettingsFilter::SettingsFilter() :
 SettingsFilter SettingsFilter::createSecondOrder(double damp, double cutoff)
 {
     SettingsFilter ret;
-    double wn = cutoff / damp;
+    double wn;
+    if (damp < 0.99)
+        wn = cutoff / std::sqrt(1 - damp*damp);
+    else if (damp < 1.01)
+        wn = cutoff;
+    else
+        wn = cutoff / (damp - std::sqrt(damp*damp - 1));
     ret.num.resize(3);
     ret.den.resize(3);
     ret.num << 0, wn*wn, 0;
@@ -86,7 +92,7 @@ void FilteredController::configureFirstRun(Time time, const Input &ref, const In
     {
         iter_filters->setInitialTime(time);
         iter_filters->setInitialConditions(
-            iter_inputs->replicate(1, iter_filters->getOrder()),
+            iter_inputs->transpose().replicate(1, iter_filters->getOrder()),
             *iter_out_dout
         );
         ++iter_filters;

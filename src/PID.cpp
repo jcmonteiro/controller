@@ -83,9 +83,9 @@ bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
     double max_cutoff = 0;
     for (const auto & s : settings)
     {
-        if (s.kd <= 0)
+        if (s.getKd() <= 0)
             continue;
-        double cutoff = s.getCutoffFrequency();
+        double cutoff = s.getSuggestedDerivativeCutoff();
         if (cutoff > max_cutoff)
             max_cutoff = cutoff;
     }
@@ -101,7 +101,6 @@ bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
     else
     {
         // place the cutoff frequency two decades ahead
-        max_cutoff *= 20;
         double damping = 0.7;
         velocity = SettingsFilter::createSecondOrder(damping, max_cutoff);
     }
@@ -125,15 +124,15 @@ bool PID::configure(const std::vector<SettingsPID> &settings, const SettingsFilt
     has_derivative = false;
     for (auto setting : settings)
     {
-        kp[k] = setting.kp;
-        ki[k] = setting.ki;
-        kd[k] = setting.kd;
+        kp[k] = setting.getKp();
+        ki[k] = setting.getKi();
+        kd[k] = setting.getKd();
         weight_reference[k] = setting.weight_reference;
         gain_antiwidnup[k]  = setting.gain_antiwidnup;
         ++k;
 
-        has_integral |= setting.ki != 0;
-        has_derivative |= setting.kd != 0;
+        has_integral |= setting.getKi() != 0;
+        has_derivative |= setting.getKd() != 0;
     }
 
     SettingsFilter integrator;

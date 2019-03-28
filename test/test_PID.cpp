@@ -107,7 +107,7 @@ linear_system::LinearSystem getDoubleIntegrator(double sampling)
     return plant;
 }
 
-void testStepResponse(Controller &controller, const SettingsPID &settings, double sampling, double time_settling, double max_overshoot, double tol_settling_error)
+void testStepResponse(Controller &controller, const SettingsPIDSecondOrder &settings, double sampling, double time_settling, double max_overshoot, double tol_settling_error)
 {
     Input ref(1);
     ref.setConstant(1);
@@ -115,8 +115,8 @@ void testStepResponse(Controller &controller, const SettingsPID &settings, doubl
     auto plant = getDoubleIntegrator(sampling);
 
     Eigen::VectorXd num_filter(3), den_filter(3);
-    num_filter << 0, pow(settings.getNaturalFrequency(), 2), settings.ki;
-    den_filter << settings.kd, settings.kp, settings.ki;
+    num_filter << 0, pow(settings.getNaturalFrequency(), 2), settings.getKi();
+    den_filter << settings.getKd(), settings.getKp(), settings.getKi();
     linear_system::LinearSystem prefilter(num_filter, den_filter, sampling);
 
     Eigen::MatrixXd init_in_filter(1, 2);
@@ -170,7 +170,7 @@ void testStepResponse(Controller &controller, const SettingsPID &settings, doubl
     }
 }
 
-void testFrequencyResponse(Controller &controller, const SettingsPID &settings, double sampling, double damp, double cutoff, double farpole)
+void testFrequencyResponse(Controller &controller, const SettingsPIDSecondOrder &settings, double sampling, double damp, double cutoff, double farpole)
 {
     double wn = cutoff / damp;
     double dt = sampling;
@@ -178,8 +178,8 @@ void testFrequencyResponse(Controller &controller, const SettingsPID &settings, 
     auto plant = getDoubleIntegrator(sampling);
 
     Eigen::VectorXd num_filter(3), den_filter(3);
-    num_filter << 0, pow(settings.getNaturalFrequency(), 2), settings.ki;
-    den_filter << settings.kd, settings.kp, settings.ki;
+    num_filter << 0, pow(settings.getNaturalFrequency(), 2), settings.getKi();
+    den_filter << settings.getKd(), settings.getKp(), settings.getKi();
     linear_system::LinearSystem prefilter(num_filter, den_filter, sampling);
 
     Eigen::VectorXd num_model(4), den_model(4);
@@ -262,10 +262,7 @@ BOOST_AUTO_TEST_CASE(test_channels)
     //
     PID pid(2);
 
-    SettingsPID settings;
-    settings.kp = 1;
-    settings.kd = 0.2;
-    settings.ki = 2;
+    SettingsPID settings(1, 0.2, 2);
 
     pid.configure({settings, settings}, 0.2);
     //
@@ -279,10 +276,7 @@ BOOST_AUTO_TEST_CASE(test_reset)
     unsigned int N = 20;
     PID pid(N);
 
-    SettingsPID settings;
-    settings.kp = 1;
-    settings.kd = 0.2;
-    settings.ki = 2;
+    SettingsPID settings(1, 0.2, 2);
 
     std::vector<SettingsPID> settings_all(N);
     for (auto &s : settings_all)
@@ -300,8 +294,8 @@ BOOST_AUTO_TEST_CASE(test_step_response)
     PID pid(1);
     std::vector<double> ts_array        = {0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000};
     std::vector<double> overshoot_array = {0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5};
-    double tol_ratio_overshoot = 1.06;
-    double tol_settling_error = 0.025;
+    double tol_ratio_overshoot = 1.1;
+    double tol_settling_error = 0.03;
     float total = ts_array.size() * overshoot_array.size();
     float current = 0;
     printProgress(0);
@@ -309,7 +303,7 @@ BOOST_AUTO_TEST_CASE(test_step_response)
     {
         for (double ts : ts_array)
         {
-            auto settings = SettingsPID::createFromSpecT(over, ts);
+            auto settings = SettingsPIDSecondOrder::createFromSpecT(over, ts);
             double sampling = settings.getSuggestedSampling();
             pid.configure(settings, sampling);
             //
@@ -333,7 +327,7 @@ BOOST_AUTO_TEST_CASE(test_frequency_response)
     {
         for (double damp : damp_array)
         {
-            auto settings = SettingsPID::createFromSpecF(damp, cutoff, 10);
+            auto settings = SettingsPIDSecondOrder::createFromSpecF(damp, cutoff, 10);
             double wn = cutoff / damp;
             double sampling = (2*M_PI/wn) / 1000;
             auto velocity = SettingsFilter::createSecondOrder(0.7, wn * 200);
@@ -351,7 +345,7 @@ BOOST_AUTO_TEST_CASE(test_saturation_cb)
     std::cout << "[TEST] saturation callback" << std::endl;
     //
     PID pid(1);
-    auto settings = SettingsPID::createFromSpecT(0.05, 1);
+    auto settings = SettingsPIDSecondOrder::createFromSpecT(0.05, 1);
     double sampling = settings.getSuggestedSampling();
     pid.configure(settings, sampling);
     //
@@ -382,10 +376,7 @@ BOOST_AUTO_TEST_CASE(test_postprocessing_cb)
     std::cout << "[TEST] post-processing callback" << std::endl;
     //
     PID pid(1);
-    SettingsPID settings;
-    settings.kp = 1;
-    settings.ki = 0;
-    settings.kd = 0;
+    SettingsPID settings(1, 0, 0);
     double sampling = 1;
     pid.configure(settings, sampling);
     //
@@ -417,7 +408,7 @@ BOOST_AUTO_TEST_CASE(test_derivative_mode)
     //
     PID pid(1);
     double sampling = 0.01;
-    pid.configure( SettingsPID::createFromSpecT(0.02, 1.0), sampling );
+    pid.configure( SettingsPIDSecondOrder::createFromSpecT(0.02, 1.0), sampling );
     Input in(1), ref(1);
     in << 0;
     ref << 0;

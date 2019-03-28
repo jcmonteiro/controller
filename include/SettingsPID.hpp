@@ -8,18 +8,16 @@ namespace controller
 class SettingsPID
 {
 private:
-    double far_pole;
-
-public:
-    //! Proportional gain
+    //! Proportional gain.
     double kp;
 
-    //! Integral gain
+    //! Integral gain.
     double ki;
 
-    //! Derivative gain
+    //! Derivative gain.
     double kd;
 
+public:
     //! Setpoint weighing term
     /** Setpoint weighing term, generally between 0 and 1
      * - B = 0 reference is introduced only through integral term
@@ -36,9 +34,59 @@ public:
     double gain_antiwidnup;
 
     /**
-     * @brief Default constructor.
+     * @brief Constructor.
+     *
+     * @param kp Proportional gain.
+     * @param ki Integral gain.
+     * @param kd Derivative gain.
      */
-    SettingsPID();
+    SettingsPID(double kp, double ki, double kd);
+    inline SettingsPID() : SettingsPID(0,0,0) {}
+
+    /**
+     * @brief Returns the suggested cutoff frequency that should be used to design the derivative filter.
+     * @return The suggested cutoff frequency or zero if there is no derivative action
+     */
+    virtual double getSuggestedDerivativeCutoff() const;
+
+    /**
+     * @brief Returns the suggested sampling.
+     */
+    virtual double getSuggestedSampling() const;
+
+    inline double getKp() const {return kp;}
+    inline double getKi() const {return ki;}
+    inline double getKd() const {return kd;}
+};
+
+
+class SettingsPIDSecondOrder : public SettingsPID
+{
+private:
+    //! Far pole position.
+    double far_pole;
+
+    /**
+     * @brief Hides the constructor because instances of this class should only be created via
+     * #createFromSpecF and #createFromSpecT.
+     */
+    inline SettingsPIDSecondOrder(double kp, double ki, double kd) :
+        SettingsPID(kp, ki, kd)
+    {}
+
+public:
+    /**
+     * @brief Returns the suggested cutoff frequency that should be used to design the derivative filter.
+     * @return The suggested cutoff frequency or zero if there is no derivative action
+     */
+    double getSuggestedDerivativeCutoff() const;
+
+    /**
+     * @brief Returns the suggested sampling, computed as min(0.25 * 2*pi/w_max, ts/100),
+     * where w_max is the fastest pole produced by this PID settings and ts = #getSamplingTime().
+     * @return The suggested sampling.
+     */
+    double getSuggestedSampling() const;
 
     /**
      * @brief Returns the expected settling time given the PID settings.
@@ -82,20 +130,13 @@ public:
     double getCutoffFrequency() const;
 
     /**
-     * @brief Returns the suggested sampling, computed as min(0.25 * 2*pi/w_max, ts/100),
-     * where w_max is the fastest pole produced by this PID settings and ts = #getSamplingTime().
-     * @return The suggested sampling.
-     */
-    double getSuggestedSampling() const;
-
-    /**
      * @brief Generate a SettingsPID instance with gains designed to meet the provided time specifications.
      * @param overshoot The maximum allowed overshoot, typically [0, 0.2]. Accepted values are in [0, 0.5].
      * @param settling_time The desired settling time, for which the step-response error < 2%.
      * @return An instance of SettingsPID with kp, ki, and kd designed to meet the specifications.
      * @throws std::logic_error If parameters are not in a valid range.
      */
-    static SettingsPID createFromSpecT(double overshoot, double settling_time);
+    static SettingsPIDSecondOrder createFromSpecT(double overshoot, double settling_time);
 
     /**
      * @brief Generate a SettingsPID instance to implement a PID with gains designed to produce the denominator of
@@ -120,7 +161,7 @@ public:
      * @return An instance of SettingsPID with kp, ki, and kd designed to meet the specifications.
      * @throws std::logic_error If parameters are not in a valid range.
      */
-    static SettingsPID createFromSpecF(double damping, double cutoff, double far_pole_ratio);
+    static SettingsPIDSecondOrder createFromSpecF(double damping, double cutoff, double far_pole_ratio);
 
     /**
      * @brief Generate a SettingsPID instance to implement a PD with gains designed to produce the denominator of
@@ -142,7 +183,7 @@ public:
      * @return An instance of SettingsPID with kp, ki = 0, and kd designed to meet the specifications.
      * @throws std::logic_error If parameters are not in a valid range.
      */
-    static SettingsPID createFromSpecF(double damping, double cutoff);
+    static SettingsPIDSecondOrder createFromSpecF(double damping, double cutoff);
 };
 
 

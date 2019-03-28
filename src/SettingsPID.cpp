@@ -6,15 +6,24 @@
 using namespace controller;
 
 
-SettingsPID::SettingsPID() :
-    far_pole(0),
-    kp(0), ki(0), kd(0),
+SettingsPID::SettingsPID(double kp, double ki, double kd) :
+    kp(kp), ki(ki), kd(kd),
     weight_reference(1),
     gain_antiwidnup(0)
 {
 }
 
-double SettingsPID::getSettlingTime() const
+double SettingsPID::getSuggestedDerivativeCutoff() const
+{
+    return 10 * kd;
+}
+
+double SettingsPID::getSuggestedSampling() const
+{
+    return 2 * M_PI / getSuggestedDerivativeCutoff() / 5;
+}
+
+double SettingsPIDSecondOrder::getSettlingTime() const
 {
     double damp = getDamping();
     // underdamped
@@ -34,7 +43,7 @@ double SettingsPID::getSettlingTime() const
         return 38.8 / getNaturalFrequency();
 }
 
-double SettingsPID::getOvershoot() const
+double SettingsPIDSecondOrder::getOvershoot() const
 {
     double damp = getDamping();
     // underdamped
@@ -44,8 +53,11 @@ double SettingsPID::getOvershoot() const
         return 0;
 }
 
-double SettingsPID::getDamping() const
+double SettingsPIDSecondOrder::getDamping() const
 {
+    double kp = getKp();
+    double ki = getKi();
+    double kd = getKd();
     // PD
     if (ki == 0)
         return kd / 2 / getNaturalFrequency();
@@ -59,14 +71,17 @@ double SettingsPID::getDamping() const
     }
 }
 
-double SettingsPID::getFarPole() const
+double SettingsPIDSecondOrder::getFarPole() const
 {
     if (far_pole != 0)
         return far_pole;
 
     // otherwise, estimate the position
+    double ki = getKi();
+    double kd = getKd();
     if (ki > 0 && kd > 0)
     {
+        double kp = getKp();
         double tmp = std::pow(ki/2 - (kd*kp)/6 + std::pow(kd , 3)/27 , 1.0/3.0);
         return kd/3 + tmp - (kp/3 - kd*kd/9) / tmp;
     }
@@ -74,25 +89,32 @@ double SettingsPID::getFarPole() const
         return 0;
 }
 
-double SettingsPID::getNaturalFrequency() const
+double SettingsPIDSecondOrder::getNaturalFrequency() const
 {
+    double ki = getKi();
+    double kd = getKd();
     // PD
     if (ki == 0)
-        return std::sqrt(kp);
+        return std::sqrt(getKp());
     // PI
     else if (kd == 0)
-        return std::sqrt(ki);
+        return std::sqrt(getKi());
     // PID
     else
-        return std::sqrt(ki / getFarPole());
+        return std::sqrt(getKi() / getFarPole());
 }
 
-double SettingsPID::getCutoffFrequency() const
+double SettingsPIDSecondOrder::getCutoffFrequency() const
 {
     return getDamping() * getNaturalFrequency();
 }
 
-double SettingsPID::getSuggestedSampling() const
+double SettingsPIDSecondOrder::getSuggestedDerivativeCutoff() const
+{
+    return 10 / getCutoffFrequency();
+}
+
+double SettingsPIDSecondOrder::getSuggestedSampling() const
 {
     double far_pole = getFarPole();
     double sampling;
@@ -103,14 +125,14 @@ double SettingsPID::getSuggestedSampling() const
     return std::min(sampling, getSettlingTime() / 100);
 }
 
-SettingsPID SettingsPID::createFromSpecT(double overshoot, double settling_time)
+SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecT(double overshoot, double settling_time)
 {
     if (overshoot < 0)
-        throw std::logic_error("[ERROR] (SettingsPID::createT) overshoot must lie in [0, 0.5]");
+        throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createT) overshoot must lie in [0, 0.5]");
     else if (overshoot > 0.5)
-        throw std::logic_error("[ERROR] (SettingsPID::createT) overshoot must lie in [0, 0.5]");
+        throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createT) overshoot must lie in [0, 0.5]");
     if (settling_time <= 0)
-        throw std::logic_error("[ERROR] (SettingsPID::createT) settling time must be positive");
+        throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createT) settling time must be positive");
     double damp, cutoff;
     if (overshoot > 0)
     {
@@ -126,34 +148,34 @@ SettingsPID SettingsPID::createFromSpecT(double overshoot, double settling_time)
     return createFromSpecF(damp, cutoff, 10);
 }
 
-SettingsPID SettingsPID::createFromSpecF(double damping, double cutoff, double far_pole_ratio)
+SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecF(double damping, double cutoff, double far_pole_ratio)
 {
     if (damping <= 0)
-        throw std::logic_error("[ERROR] (SettingsPID::createF) damping must lie in (0, 2]");
+        throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createF) damping must lie in (0, 2]");
     else if (damping > 2)
-        throw std::logic_error("[ERROR] (SettingsPID::createF) damping must lie in (0, 2]");
+        throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createF) damping must lie in (0, 2]");
     if (cutoff <= 0)
-        throw std::logic_error("[ERROR] (SettingsPID::createF) cutoff frequency must be positive");
+        throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createF) cutoff frequency must be positive");
     if (far_pole_ratio <= 0)
-        throw std::logic_error("[ERROR] (SettingsPID::createF) far pole ratio must be positive");
-    SettingsPID ret;
+        throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createF) far pole ratio must be positive");
     double wn = cutoff / damping;
-    ret.kp = wn*wn * (1 + 2*damping*damping*far_pole_ratio);
-    ret.ki = far_pole_ratio * damping * wn*wn*wn;
-    ret.kd = damping * wn * (far_pole_ratio + 2);
-    ret.gain_antiwidnup = 1 / ret.ki;
+    double kp = wn*wn * (1 + 2*damping*damping*far_pole_ratio);
+    double ki = far_pole_ratio * damping * wn*wn*wn;
+    double kd = damping * wn * (far_pole_ratio + 2);
+    SettingsPIDSecondOrder ret(kp,ki,kd);
+    ret.gain_antiwidnup = 1 / ki;
     ret.weight_reference = 1;
     ret.far_pole = far_pole_ratio * damping * wn;
     return ret;
 }
 
-SettingsPID SettingsPID::createFromSpecF(double damping, double cutoff)
+SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecF(double damping, double cutoff)
 {
-    SettingsPID ret;
     double wn = cutoff / damping;
-    ret.kp = wn*wn;
-    ret.ki = 0;
-    ret.kd = 2 * damping * wn;
+    double kp = wn*wn;
+    double ki = 0;
+    double kd = 2 * damping * wn;
+    SettingsPIDSecondOrder ret(kp,ki,kd);
     ret.gain_antiwidnup = 0;
     ret.weight_reference = 1;
     return ret;
