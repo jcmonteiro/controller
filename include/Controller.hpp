@@ -21,7 +21,7 @@ public:
     typedef std::function<void (Output &)> CallbackPostProcessing;
 
 private:
-    Output output, output_presat;
+    Output output, output_presat, output_default;
     Time time_last;
     bool first_run;
 
@@ -59,13 +59,18 @@ public:
     virtual bool ok() const = 0;
 
     /**
+     * @brief Sets the default output.
+     */
+    void setDefaultOutput(const Output &out);
+
+    /**
      * @brief Returns the default output.
      *
      * This method is called internally when update is called for a previous time instant.
      *
      * @return
      */
-    virtual const Output & getDefaultOutput() const = 0;
+    const Output & getDefaultOutput() const;
 
     /**
      * @brief Restarts controller to its initial configuration.

@@ -7,9 +7,23 @@ using namespace controller;
 
 
 Controller::Controller(unsigned int N_controllers) :
+    output_default( Eigen::VectorXd::Zero(N_controllers) ),
     cb_postprocessing(0), cb_saturation(0), _N(N_controllers)
 {
     restart();
+}
+
+void Controller::setDefaultOutput(const Output &out)
+{
+    if (out.rows()*out.cols() != size())
+        std::logic_error("[ERROR] (Controller::setDefaultOutput) argument size differs from "
+                         "the controller size");
+    output_default = out;
+}
+
+const Output &Controller::getDefaultOutput() const
+{
+    return output_default;
 }
 
 void Controller::restart()

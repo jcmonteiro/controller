@@ -15,7 +15,7 @@ PID::PID(unsigned int N_controllers) :
     kd.setZero(_N);
     weight_reference.setZero(_N);
     gain_antiwidnup.setZero(_N);
-    output_default.setZero(_N);
+    dot_error_zero.setZero();
 }
 
 const Output & PID::updateControl(Time time, const Input &ref, const Input &signal)
@@ -181,11 +181,11 @@ bool PID::configure(const SettingsPID &settings, const SettingsFilter &settings_
 
 const Eigen::VectorXd & PID::getErrorDerivative() const
 {
-    if (mode_velocity_filtered)
+    if (!mode_velocity_filtered)
         return dot_error;
     if (has_derivative)
         return getFilters()[0].getOutput();
-    return 0;
+    return dot_error_zero;
 }
 
 void PID::setErrorDerivative(const Input &dot_error)

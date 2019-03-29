@@ -18,9 +18,9 @@ private:
 
     Gain kp, ki, kd, gain_antiwidnup, weight_reference;
 
-    Input dot_error;
+    Input dot_error, dot_error_zero;
 
-    Output output_default, output;
+    Output output;
 
     static bool nonnegative(const Gain & gain)
     {
@@ -50,15 +50,6 @@ public:
             nonnegative(kd) &&
             nonnegative(weight_reference) && (weight_reference.array() <= 1).all() &&
             nonnegative(gain_antiwidnup);
-    }
-
-    /**
-     * @brief Returns the default output for this PID instance.
-     * @return The default output.
-     */
-    const Output & getDefaultOutput() const
-    {
-        return output_default;
     }
 
     bool configure(const std::vector<SettingsPID> & settings, double sampling);
