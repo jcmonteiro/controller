@@ -181,7 +181,11 @@ bool PID::configure(const SettingsPID &settings, const SettingsFilter &settings_
 
 const Eigen::VectorXd & PID::getErrorDerivative() const
 {
-    return (mode_velocity_filtered) ? getFilters()[0].getOutput() : dot_error;
+    if (mode_velocity_filtered)
+        return dot_error;
+    if (has_derivative)
+        return getFilters()[0].getOutput();
+    return 0;
 }
 
 void PID::setErrorDerivative(const Input &dot_error)
