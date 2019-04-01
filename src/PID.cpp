@@ -101,7 +101,7 @@ bool PID::configure(const std::vector<SettingsPID> &settings, double sampling)
     else
     {
         // place the cutoff frequency two decades ahead
-        double damping = 0.7;
+        double damping = 0.8;
         velocity = SettingsFilter::createSecondOrder(damping, max_cutoff);
     }
     velocity.sampling_period = sampling;

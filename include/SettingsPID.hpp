@@ -66,13 +66,20 @@ private:
     //! Far pole position.
     double far_pole;
 
+    //! Natural (resonant) frequency.
+    double wn;
+
+    //! Cutoff frequency.
+    double wc;
+
+    //! Damping coefficient.
+    double damp;
+
     /**
      * @brief Hides the constructor because instances of this class should only be created via
      * #createFromSpecF and #createFromSpecT.
      */
-    inline SettingsPIDSecondOrder(double kp, double ki, double kd) :
-        SettingsPID(kp, ki, kd)
-    {}
+    SettingsPIDSecondOrder(double kp, double ki, double kd);
 
 public:
     /**

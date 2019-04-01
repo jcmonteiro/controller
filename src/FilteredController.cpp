@@ -1,4 +1,5 @@
 #include "FilteredController.hpp"
+#include <linear_system/HelperFunctions.hpp>
 #include <iostream>
 
 
@@ -14,13 +15,7 @@ SettingsFilter::SettingsFilter() :
 SettingsFilter SettingsFilter::createSecondOrder(double damp, double cutoff)
 {
     SettingsFilter ret;
-    double wn;
-    if (damp < 0.99)
-        wn = cutoff / std::sqrt(1 - damp*damp);
-    else if (damp < 1.01)
-        wn = cutoff;
-    else
-        wn = cutoff / (damp - std::sqrt(damp*damp - 1));
+    double wn = linear_system::cutoff2resonant(cutoff, damp);
     ret.num.resize(3);
     ret.den.resize(3);
     ret.num << 0, wn*wn, 0;

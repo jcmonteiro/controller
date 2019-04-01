@@ -1,9 +1,11 @@
 #define BOOST_TEST_MODULE LinearSystem test
 
+#include "PID.hpp"
+
+#include <linear_system/HelperFunctions.hpp>
+
 #include <boost/test/unit_test.hpp>
 #include <iostream>
-#include "PID.hpp"
-#include <fstream>
 
 using namespace controller;
 
@@ -107,51 +109,93 @@ linear_system::LinearSystem getDoubleIntegrator(double sampling)
     return plant;
 }
 
-void testStepResponse(Controller &controller, const SettingsPIDSecondOrder &settings, double sampling, double time_settling, double max_overshoot, double tol_settling_error)
+void testStepResponse(Controller &controller, const SettingsPIDSecondOrder &settings, double sampling,
+    double time_settling, double max_overshoot, double tol_settling_error, double tol_diff_model)
 {
     Input ref(1);
     ref.setConstant(1);
 
     auto plant = getDoubleIntegrator(sampling);
 
+    double wn = settings.getNaturalFrequency();
+    double damp = settings.getDamping();
+    double far = settings.getFarPole();
+
     Eigen::VectorXd num_filter(3), den_filter(3);
-    num_filter << 0, pow(settings.getNaturalFrequency(), 2), settings.getKi();
+    num_filter << 0, 0, settings.getKi();
     den_filter << settings.getKd(), settings.getKp(), settings.getKi();
     linear_system::LinearSystem prefilter(num_filter, den_filter, sampling);
 
-    Eigen::MatrixXd init_in_filter(1, 2);
-    init_in_filter << ref[0], ref[0];
+    num_filter << settings.getKi(), 0, 0;
+    den_filter << settings.getKd(), settings.getKp(), settings.getKi();
+    linear_system::LinearSystem feedforward(num_filter, den_filter, sampling);
+    controller.setCallbackPostProcessing(
+        [&feedforward] (Output &out) -> void {
+            out += feedforward.getOutput();
+        }
+    );
+
+    Eigen::VectorXd num_model(1), den_model(4);
+    num_model << wn*wn*far;
+    den_model << 1, 2*damp*wn+far, 2*damp*wn*far+wn*wn, far*wn*wn;
+    linear_system::LinearSystem model(num_model, den_model, sampling);
+
     Eigen::MatrixXd init_out_filter(1, 2);
     init_out_filter << plant.getOutput()[0], 0;
-    prefilter.setInitialConditions(init_in_filter, init_out_filter);
+    prefilter.setInitialConditions(
+        Eigen::MatrixXd::Constant(1,2, ref[0]),
+        init_out_filter);
+    feedforward.setInitialConditions(
+        Eigen::MatrixXd::Constant(1,2, ref[0]),
+        Eigen::MatrixXd::Zero(1,2));
+    model.setInitialConditions(
+        Eigen::MatrixXd::Constant(1,3, ref[0]),
+        Eigen::MatrixXd::Zero(1,3)
+    );
 
-    double time = 0, dt = sampling;
+    linear_system::Time time = 0, dt = linear_system::LinearSystem::getTimeFromSeconds(sampling);
     double ratio = 0;
     double overshoot = 0;
     double time_overshoot = 0;
     plant.setInitialTime(time);
     prefilter.setInitialTime(time);
+    feedforward.setInitialTime(time);
+    model.setInitialTime(time);
     controller.restart();
-    while (time < time_settling)
+    linear_system::Time time_settling_micro = linear_system::LinearSystem::getTimeFromSeconds(time_settling);
+    linear_system::Time samples = (time_settling_micro / dt) + 2;
+    Eigen::MatrixXd data(samples, 3);
+    unsigned int k = 0;
+    while (time < time_settling_micro)
     {
         prefilter.update(
             ref,
-            linear_system::LinearSystem::getTimeFromSeconds(time)
+            time
+        );
+        feedforward.update(
+            ref,
+            time
         );
         controller.update(
-            linear_system::LinearSystem::getTimeFromSeconds(time),
+            time,
             prefilter.getOutput(),
             plant.getOutput()
         );
-        plant.update(controller.getOutput(), linear_system::LinearSystem::getTimeFromSeconds(time));
+        plant.update(controller.getOutput(), time);
         ratio = std::abs( plant.getOutput()[0]/ref[0] - 1 );
         if (plant.getOutput()[0] > ref[0] && ratio > overshoot)
         {
             overshoot = ratio;
             time_overshoot = time;
         }
+        data(k,0) = time;
+        data(k,1) = model.update(ref, time)[0];
+        data(k,2) = plant.getOutput()[0];
+        ++k;
         time += dt;
+
     }
+    data.conservativeResize(k, Eigen::NoChange);
     if (overshoot > max_overshoot)
     {
         std::stringstream error;
@@ -168,11 +212,20 @@ void testStepResponse(Controller &controller, const SettingsPIDSecondOrder &sett
               << ")";
         BOOST_ERROR(error.str());
     }
+    double diff_model = (data.col(1) - data.col(2)).array().abs().maxCoeff();
+    if ( diff_model > tol_diff_model )
+    {
+        std::stringstream error;
+        error << "PID closed-loop step-response differs from its nominal value by: "
+              << diff_model << " > " << tol_diff_model
+              << ")";
+        BOOST_ERROR(error.str());
+    }
 }
 
 void testFrequencyResponse(Controller &controller, const SettingsPIDSecondOrder &settings, double sampling, double damp, double cutoff, double farpole)
 {
-    double wn = cutoff / damp;
+    double wn = linear_system::cutoff2resonant(cutoff, damp);
     double dt = sampling;
 
     auto plant = getDoubleIntegrator(sampling);
@@ -296,6 +349,7 @@ BOOST_AUTO_TEST_CASE(test_step_response)
     std::vector<double> overshoot_array = {0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5};
     double tol_ratio_overshoot = 1.1;
     double tol_settling_error = 0.03;
+    double tol_diff_model = 0.1;
     float total = ts_array.size() * overshoot_array.size();
     float current = 0;
     printProgress(0);
@@ -307,7 +361,7 @@ BOOST_AUTO_TEST_CASE(test_step_response)
             double sampling = settings.getSuggestedSampling();
             pid.configure(settings, sampling);
             //
-            testStepResponse(pid, settings, sampling, ts, tol_ratio_overshoot * over, tol_settling_error);
+            testStepResponse(pid, settings, sampling, ts, tol_ratio_overshoot * over, tol_settling_error, tol_diff_model);
             printProgress(++current/total);
         }
     }

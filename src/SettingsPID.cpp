@@ -1,4 +1,5 @@
 #include "SettingsPID.hpp"
+#include <linear_system/HelperFunctions.hpp>
 #include <cmath>
 #include <stdexcept>
 
@@ -15,12 +16,19 @@ SettingsPID::SettingsPID(double kp, double ki, double kd) :
 
 double SettingsPID::getSuggestedDerivativeCutoff() const
 {
-    return 10 * kd;
+    return 4 * kd;
 }
 
 double SettingsPID::getSuggestedSampling() const
 {
-    return 2 * M_PI / getSuggestedDerivativeCutoff() / 5;
+    return std::max(2 * M_PI / getSuggestedDerivativeCutoff() / 100, 1e-5);
+}
+
+
+
+SettingsPIDSecondOrder::SettingsPIDSecondOrder(double kp, double ki, double kd) :
+    SettingsPID(kp, ki, kd), far_pole(0)
+{
 }
 
 double SettingsPIDSecondOrder::getSettlingTime() const
@@ -55,74 +63,34 @@ double SettingsPIDSecondOrder::getOvershoot() const
 
 double SettingsPIDSecondOrder::getDamping() const
 {
-    double kp = getKp();
-    double ki = getKi();
-    double kd = getKd();
-    // PD
-    if (ki == 0)
-        return kd / 2 / getNaturalFrequency();
-    // PI
-    else if (kd == 0)
-        return kp / 2 / getNaturalFrequency();
-    // PID
-    else
-    {
-        return (kd - getFarPole()) / 2 / getNaturalFrequency();
-    }
+    return damp;
 }
 
 double SettingsPIDSecondOrder::getFarPole() const
 {
-    if (far_pole != 0)
-        return far_pole;
-
-    // otherwise, estimate the position
-    double ki = getKi();
-    double kd = getKd();
-    if (ki > 0 && kd > 0)
-    {
-        double kp = getKp();
-        double tmp = std::pow(ki/2 - (kd*kp)/6 + std::pow(kd , 3)/27 , 1.0/3.0);
-        return kd/3 + tmp - (kp/3 - kd*kd/9) / tmp;
-    }
-    else
-        return 0;
+    return far_pole;
 }
 
 double SettingsPIDSecondOrder::getNaturalFrequency() const
 {
-    double ki = getKi();
-    double kd = getKd();
-    // PD
-    if (ki == 0)
-        return std::sqrt(getKp());
-    // PI
-    else if (kd == 0)
-        return std::sqrt(getKi());
-    // PID
-    else
-        return std::sqrt(getKi() / getFarPole());
+    return wn;
 }
 
 double SettingsPIDSecondOrder::getCutoffFrequency() const
 {
-    return getDamping() * getNaturalFrequency();
+    return linear_system::resonant2cutoff(getNaturalFrequency(), getDamping());
 }
 
 double SettingsPIDSecondOrder::getSuggestedDerivativeCutoff() const
 {
-    return 10 / getCutoffFrequency();
+    return 10 * getCutoffFrequency();
 }
 
 double SettingsPIDSecondOrder::getSuggestedSampling() const
 {
-    double far_pole = getFarPole();
     double sampling;
-    if (far_pole == 0 || far_pole < 1)
-        sampling = M_PI_2 / getCutoffFrequency();
-    else
-        sampling = M_PI_2 / getCutoffFrequency() / far_pole;
-    return std::min(sampling, getSettlingTime() / 100);
+    sampling = 2 * M_PI / std::max(getFarPole(), getCutoffFrequency()) / 100;
+    return std::max(sampling, 1e-5);
 }
 
 SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecT(double overshoot, double settling_time)
@@ -138,7 +106,7 @@ SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecT(double overshoot,
     {
         double tmp = std::log(overshoot);
         damp = -tmp / std::sqrt(M_PI*M_PI + tmp*tmp);
-        cutoff = -std::log(0.02 * std::sqrt(1-damp*damp)) / settling_time;
+        cutoff = linear_system::resonant2cutoff(-std::log(0.02 * std::sqrt(1-damp*damp)) / damp / settling_time, damp);
     }
     else
     {
@@ -158,7 +126,7 @@ SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecF(double damping, d
         throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createF) cutoff frequency must be positive");
     if (far_pole_ratio <= 0)
         throw std::logic_error("[ERROR] (SettingsPIDSecondOrder::createF) far pole ratio must be positive");
-    double wn = cutoff / damping;
+    double wn = linear_system::cutoff2resonant(cutoff, damping);
     double kp = wn*wn * (1 + 2*damping*damping*far_pole_ratio);
     double ki = far_pole_ratio * damping * wn*wn*wn;
     double kd = damping * wn * (far_pole_ratio + 2);
@@ -166,17 +134,23 @@ SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecF(double damping, d
     ret.gain_antiwidnup = 1 / ki;
     ret.weight_reference = 1;
     ret.far_pole = far_pole_ratio * damping * wn;
+    ret.damp = damping;
+    ret.wn = wn;
+    ret.wc = cutoff;
     return ret;
 }
 
 SettingsPIDSecondOrder SettingsPIDSecondOrder::createFromSpecF(double damping, double cutoff)
 {
-    double wn = cutoff / damping;
+    double wn = linear_system::cutoff2resonant(cutoff, damping);
     double kp = wn*wn;
     double ki = 0;
     double kd = 2 * damping * wn;
     SettingsPIDSecondOrder ret(kp,ki,kd);
     ret.gain_antiwidnup = 0;
     ret.weight_reference = 1;
+    ret.damp = damping;
+    ret.wn = wn;
+    ret.wc = cutoff;
     return ret;
 }
