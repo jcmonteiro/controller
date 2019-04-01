@@ -35,6 +35,7 @@ set(LIBRARY_SOURCES
     src/FilteredController.cpp
     src/PID.cpp
     src/SettingsPID.cpp
+    src/SettingsPPI.cpp
 )
 add_library(${LIBNAME} SHARED "${LIBRARY_SOURCES}")
 target_link_libraries(${LIBNAME} linear_system)
@@ -74,6 +75,7 @@ set(LIBRARY_HEADERS
     include/FilteredController.hpp
     include/PID.hpp
     include/SettingsPID.hpp
+    include/SettingsPPI.hpp
 )
 set_target_properties(${LIBNAME} PROPERTIES PUBLIC_HEADER "${LIBRARY_HEADERS}")
 install(
