@@ -24,6 +24,7 @@ endmacro(use_cxx11)
 
 use_cxx11()
 
+find_package(GTest QUIET)
 find_package(Boost COMPONENTS unit_test_framework)
 find_package(linear_system REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -61,12 +62,26 @@ if (pybind11_FOUND)
 endif ()
 
 # Unit tests
-if (Boost_FOUND)
+OPTION(BOOST_UTF "Create test using Boost Unit Test Framework" OFF) # Disabled by default
+OPTION(GTEST_UTF "Create test using Google test Unit Test Framework" OFF) # Disabled by default
+if (BOOST_UTF OR GTEST_UTF)
+    enable_testing()
+endif ()
+
+# 1. Boost
+if (Boost_FOUND AND BOOST_UTF)
     ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
     add_executable(test-library "test/test_PID.cpp")
     target_include_directories(test-library PRIVATE ${Boost_INCLUDE_DIRS} ${YAML_CPP_INCLUDE_DIRS})
     target_link_libraries(test-library ${Boost_LIBRARIES} ${YAML_CPP_LIBRARIES} ${LIBNAME})
-    add_test(NAME test-1 COMMAND test-library)
+    add_test(NAME boost-test COMMAND test-library)
+endif ()
+# 2. Google Test
+if (GTEST_FOUND AND GTEST_UTF)
+    add_executable(gtest-library "../test/gtest_PID.cpp")
+    target_include_directories(gtest-library PRIVATE ${GTEST_INCLUDE_DIRS} ${YAML_CPP_INCLUDE_DIRS})
+    target_link_libraries(gtest-library ${GTEST_LIBRARIES} ${YAML_CPP_LIBRARIES} pthread ${LIBNAME})
+    add_test(NAME gtest-test COMMAND gtest-library)
 endif ()
 
 # Install
